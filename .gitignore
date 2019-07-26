@@ -1,0 +1,10 @@
+__pycache__
+tempCodeRunner*
+.vscode
+build
+devel
+*.pyc
+*.png
+experiments*
+*.dat
+.idea
