@@ -135,6 +135,8 @@ def tokens_to_data_pairs(nusc: NuScenes,
     rgb_images_list = []
     for i in range(len(cam_sd_tokens)):
         cam_sd_path = nusc.get_sample_data_path(cam_sd_tokens[i])
+        if not os.path.isfile(cam_sd_path):
+            continue
         #im = Image.open(cam_sd_path)
         #im = im.resize((IMAGE_WIDTH, IMAGE_HEIGHT), Image.BILINEAR)
         img = cv2.imread(cam_sd_path)
@@ -146,6 +148,8 @@ def tokens_to_data_pairs(nusc: NuScenes,
     radar_pcl_list = []
     for i in range(len(rad_sd_tokens)):
         rad_sd_path = nusc.get_sample_data_path(rad_sd_tokens[i])
+        if not os.path.isfile(rad_sd_path):
+            continue
         #radar_pcl = RadarPointCloud.from_file(rad_sd_path, invalid_states = range(18), dynprop_states = range(18), ambig_states = range(18))
         radar_pcl = RadarPointCloud.from_file(rad_sd_path)
         #nuScenes RadarPointCloud has shape (18, num_points)
@@ -436,7 +440,7 @@ def main():
             raise
 
     #Instantiate an object of the NuScenes dataset class
-    nusc = NuScenes(version='v1.0-mini', dataroot='/home/odysseas/thesis/data/sets/nuscenes/', verbose=True)
+    nusc = NuScenes(version='v1.0-trainval', dataroot='/home/odysseas/thesis/data/sets/nuscenes/', verbose=True)
 
     #Load front_cam and front_rad sample_data info in respective lists
     cam_sd_tokens, rad_sd_tokens, sample_names = load_keyframe_rad_cam_data(nusc)
