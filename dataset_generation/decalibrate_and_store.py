@@ -55,7 +55,9 @@ debug_circle_size = 2
 
 ORIGINAL_WIDTH = 1600
 ORIGINAL_HEIGHT = 900
-REQUIRED_NUM_POINTS = 10 # at least this much radar det. should be projected on the image, if not do not include image in dataset
+#Each image frame must contain at least 10 radar detections
+#in order to be added in the dataset
+REQUIRED_NUM_POINTS = 10
 h_gt = None
 counter_for_num_images = 0
 counter_total_correspondences = 0
@@ -63,9 +65,6 @@ counter_total_correspondences = 0
 projections_decalibrated = []
 projections_groundtruth = []
 
-#received_rgb_images = []
-#rgb_timestamps = []
-#received_radar_frames = []
 
 
 def load_keyframe_rad_cam_data(nusc: NuScenes) -> (List[str], List[str], List[str]):
@@ -74,8 +73,7 @@ def load_keyframe_rad_cam_data(nusc: NuScenes) -> (List[str], List[str], List[st
     sample_tokens of all CAM_FRONT and RADAR_FRONT sample_data which
     have (almost) the same timestamp as their corresponding sample
     (is_key_frame = True). In addition, it returns the sample_names which are set
-    equal to the filename of each CAM_FRONT sample_data as well as the intrinsic matrix
-    and the transformation matrix from RADAR_FRONT to CAM_FRONT for each sample_data.
+    equal to the filename of each CAM_FRONT sample_data.
     :param nusc: Nuscenes instance
     :return: (cam_sd_tokens, rad_sd_tokens, sample_names, cam_intrinsics).
     Tuple with lists of camera and radar tokens as well as sample_names
@@ -165,7 +163,7 @@ def tokens_to_data_pairs(nusc: NuScenes,
 
     return image_radar_pairs
 
-def get_rad_to_cam(nusc: NuScenes, cam_sd_token: str, rad_sd_token: str, nuscenes_way: bool):
+def get_rad_to_cam(nusc: NuScenes, cam_sd_token: str, rad_sd_token: str):
     """
     Method to get the extrinsic calibration matrix from radar_front to camera_front
     for a specifi sample.
@@ -185,19 +183,11 @@ def get_rad_to_cam(nusc: NuScenes, cam_sd_token: str, rad_sd_token: str, nuscene
     rad_cs_token = nusc.get('sample_data', rad_sd_token)["calibrated_sensor_token"]
     rad_cs_rec = nusc.get('calibrated_sensor', rad_cs_token)
 
-    #radar_cs_rec
-    if not nuscenes_way:
-        #Based on my understanding of transforms and tests on Rviz
-        rad_to_ego = transform_matrix(rad_cs_rec['translation'], Quaternion(rad_cs_rec['rotation']), inverse = True)
-        ego_to_cam = transform_matrix(cam_cs_rec['translation'], Quaternion(cam_cs_rec['rotation']), inverse = False)
-        rad_to_cam = np.dot(rad_to_ego, ego_to_cam)
-        return rad_to_cam
-    else:
-        #Based on how transforms are created in scripts/export_kitti.py
-        rad_to_ego = transform_matrix(rad_cs_rec['translation'], Quaternion(rad_cs_rec['rotation']), inverse = False)
-        ego_to_cam = transform_matrix(cam_cs_rec['translation'], Quaternion(cam_cs_rec['rotation']), inverse = True)
-        rad_to_cam = np.dot(ego_to_cam, rad_to_ego)
-        return rad_to_cam
+    #Based on how transforms are handled in nuScenes scripts like scripts/export_kitti.py
+    rad_to_ego = transform_matrix(rad_cs_rec['translation'], Quaternion(rad_cs_rec['rotation']), inverse = False)
+    ego_to_cam = transform_matrix(cam_cs_rec['translation'], Quaternion(cam_cs_rec['rotation']), inverse = True)
+    rad_to_cam = np.dot(ego_to_cam, rad_to_ego)
+    return rad_to_cam
 
 
 def invert_homogeneous_matrix(mat):
@@ -225,18 +215,6 @@ def valid_pixel_coordinates(u, v, IMAGE_HEIGHT, IMAGE_WIDTH):
     Checks whether the provided pixel coordinates are valid.
     """
     return (u >= 0 and v >= 0 and v < IMAGE_HEIGHT and u < IMAGE_WIDTH)
-
-def standardize_image(img):
-    """
-    Standardizing the image seperately on 3 channels.
-    """
-    means, stddevs = cv2.meanStdDev(img)
-    r, g, b = cv2.split(img)
-    r = (r - means[0]) / stddevs[0]
-    g = (g - means[1]) / stddevs[1]
-    b = (b - means[2]) / stddevs[2]
-    return cv2.merge([r, g, b])
-
 
 
 def create_and_store_samples(image_radar_pairs: List,
@@ -391,12 +369,14 @@ def main():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
+
     args = parser.parse_args()
     global static_decalib
     static_decalib = args.static_decalib
+
+    #Create output directory and subdirectories
     global output_path
     output_path = args.out_dir
-
     global debug_images_path
     debug_images_path = output_path + "/debug_rgb_images/" # inside output folder we will a sub-folder called debug images
     global projections_decalib_debug_path
@@ -455,7 +435,7 @@ def main():
         if exc.errno != errno.EEXIST:
             raise
 
-
+    #Instantiate an object of the NuScenes dataset class
     nusc = NuScenes(version='v1.0-mini', dataroot='/home/odysseas/thesis/data/sets/nuscenes/', verbose=True)
 
     #Load front_cam and front_rad sample_data info in respective lists
@@ -472,10 +452,11 @@ def main():
         cam_cs_token = nusc.get('sample_data', cam_sd_tokens[i])["calibrated_sensor_token"]
         cam_cs_rec = nusc.get('calibrated_sensor', cam_cs_token)
         K = np.array(cam_cs_rec["camera_intrinsic"])
-        #nuscenes K is 3x3 but RADNET expects 3x4 with an extra column of zeros
-        K =np.hstack((K, np.zeros((K.shape[0], 1), dtype=K.dtype)))
+        #nuscenes K is 3x3 and we augment it to 3x4 with an extra zero column
+        #since it will be used for mult witl 4x4 H_gt matrix
+        K = np.hstack((K, np.zeros((K.shape[0], 1), dtype=K.dtype)))
         cam_intrinsics.append(K)
-        H_gt = get_rad_to_cam(nusc, cam_sd_tokens[i], rad_sd_tokens[i], nuscenes_way = True)
+        H_gt = get_rad_to_cam(nusc, cam_sd_tokens[i], rad_sd_tokens[i])
         rad_to_cam_calibration_matrices.append(H_gt)
 
     store_data(image_radar_pairs, sample_names, rad_to_cam_calibration_matrices, cam_intrinsics)
