@@ -3,7 +3,7 @@ Loads nuScenes dataset and de-calibrates the radar_front to cam_front calibratio
 Creates a dataset with the following structure:
     1 npz file per sample containing:
         rgb_image: numpy array with shape (150, 240, 3)
-        radar_detections: numpy array with shape (number_of_detections, 4) containing position vectors of all detections in radar coordinate frame
+        radar_detections: numpy array with shape (number_of_detections, 4) containing position vectors [x,y,z,1] of all detections in radar coordinate frame
         projections_groundtruth: radar detections projected into image using h_gt, stored as csr_matrix in ndarray
         projections_decalib: radar detections projected into image using h_gt and decalibration, stored as csr_matrix in ndarray
         K: intrinsic camera calibration matrix K (numpy array with shape (3,4))
@@ -151,6 +151,7 @@ def tokens_to_data_pairs(nusc: NuScenes,
         if not os.path.isfile(rad_sd_path):
             continue
         #radar_pcl = RadarPointCloud.from_file(rad_sd_path, invalid_states = range(18), dynprop_states = range(18), ambig_states = range(18))
+        #radar_pcl = RadarPointCloud.from_file(rad_sd_path, invalid_states = None, dynprop_states = [0,2,6], ambig_states = None)
         radar_pcl = RadarPointCloud.from_file(rad_sd_path)
         #nuScenes RadarPointCloud has shape (18, num_points)
         #RADNET expects (num_points, 4)
@@ -371,7 +372,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_RADNET', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()
@@ -440,7 +441,7 @@ def main():
             raise
 
     #Instantiate an object of the NuScenes dataset class
-    nusc = NuScenes(version='v1.0-trainval', dataroot='/home/odysseas/thesis/data/sets/nuscenes/', verbose=True)
+    nusc = NuScenes(version='v1.0-mini', dataroot='/home/odysseas/thesis/data/sets/nuscenes_mini/', verbose=True)
 
     #Load front_cam and front_rad sample_data info in respective lists
     cam_sd_tokens, rad_sd_tokens, sample_names = load_keyframe_rad_cam_data(nusc)
