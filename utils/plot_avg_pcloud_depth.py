@@ -113,8 +113,8 @@ def main():
     plt.title("Histogram of radar depths")
     plt.ylabel("Number of detections")
     plt.xlabel("Depth")
-    plt.xticks((np.arange(0, max(depths_list)+1, 10)))
-    plt.show()
+    plt.xticks((np.arange(0, max(depths_list)+1, 20)))
+    plt.savefig('Radar_Depths_Histogram.png', bbox_inches='tight')
 
 
 if __name__ == '__main__':
