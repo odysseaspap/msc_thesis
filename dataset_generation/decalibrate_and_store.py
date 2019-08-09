@@ -75,7 +75,7 @@ def load_keyframe_rad_cam_data(nusc: NuScenes) -> (List[str], List[str], List[st
     (is_key_frame = True). In addition, it returns the sample_names which are set
     equal to the filename of each CAM_FRONT sample_data.
     :param nusc: Nuscenes instance
-    :return: (cam_sd_tokens, rad_sd_tokens, sample_names, cam_intrinsics).
+    :return: (cam_sd_tokens, rad_sd_tokens, sample_names).
     Tuple with lists of camera and radar tokens as well as sample_names
     """
 
@@ -372,7 +372,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_RADNET', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_test', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()
@@ -452,8 +452,8 @@ def main():
     #Load H_gt and K matrices for each sample_data record
     rad_to_cam_calibration_matrices = []
     cam_intrinsics = []
-
-    for i in range(len(cam_sd_tokens)):
+    print(len(image_radar_pairs))
+    for i in range(len(image_radar_pairs)):
         cam_cs_token = nusc.get('sample_data', cam_sd_tokens[i])["calibrated_sensor_token"]
         cam_cs_rec = nusc.get('calibrated_sensor', cam_cs_token)
         K = np.array(cam_cs_rec["camera_intrinsic"])
