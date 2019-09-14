@@ -19,7 +19,7 @@ def create_random_rotation_matrix(angle_std_dev):
     # Create random roll rotation (rotation around z-axis)
     roll_angle = np.random.uniform(low=-angle_std_dev*0.5, high=angle_std_dev*0.5)
     # print("Roll angle: {}".format(roll_angle))
-    roll_angle = np.radians(roll_angle) 
+    roll_angle = np.radians(roll_angle)
     # roll_angle = np.radians(angle_std_dev * np.random.randn()) * 0.5 # Assume smaller roll error.
     roll_c, roll_s = np.cos(roll_angle), np.sin(roll_angle)
     roll_matrix = np.array([[roll_c, -roll_s, 0], [roll_s, roll_c, 0], [0, 0, 1]])
@@ -47,7 +47,7 @@ def create_random_rotation_matrix(angle_std_dev):
 def create_random_translation_vector(translation_std_dev):
     """
     Create random translation vector in 3D from standard normal distribution.
-    """   
+    """
     x = np.random.uniform(low=-translation_std_dev, high=translation_std_dev)
     y = np.random.uniform(low=-translation_std_dev, high=translation_std_dev)
     z = np.random.uniform(low=-translation_std_dev, high=translation_std_dev)
