@@ -300,7 +300,6 @@ def create_and_store_samples(image_radar_pairs: List,
         # num_detections_lower_image_half = np.sum((projection_groundtruth > 0.0).astype(int)[len(projection_groundtruth)/3:])
         # if num_detections_lower_image_half < 3:
         #     break
-        #TODO: check if this is correct!!
         counter_total_correspondences += len(radar_pcl.points)
         global counter_for_num_images
         # sample_name = str(counter_for_num_images).zfill(6)+"_"+measurement_name+"_"+str(rgb_timestamps[cnt_images])
