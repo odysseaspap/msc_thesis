@@ -67,10 +67,11 @@ class DataGenerator(keras.utils.Sequence):
         # Initialization
         batch_rgb_input = np.empty((self.batch_size, *self.dim, self.image_channels))
         batch_radar_input = np.empty((self.batch_size, *self.dim, self.radar_channels))
+        batch_k_mat = np.empty((self.batch_size, (3, 4)))
         batch_labels = np.empty((self.batch_size, 4))
         # Load and augment data samples
         for i, ID in enumerate(list_IDs_batch):
-            [batch_rgb_input[i,], batch_radar_input[i,]], batch_labels[i,] = dl.load_radnet_training_sample(str(ID))
+            [batch_rgb_input[i,], batch_radar_input[i,], batch_k_mat[i,]], batch_labels[i,] = dl.load_radnet_training_sample_with_intrinsics(str(ID))
             # exchange radar input and label in case augmented data has to be used
             if self.use_augmented_data == True:
                 projection_aug, label_aug = dl.load_augmented_projection_sample(self.path_augmented_data + str(ID).split("/")[-1])
@@ -82,7 +83,8 @@ class DataGenerator(keras.utils.Sequence):
         dw.standardize_images(batch_rgb_input)
         assert(len(batch_rgb_input) == len(batch_labels))
         assert(len(batch_radar_input) == len(batch_labels))
-        return [batch_rgb_input, batch_radar_input], batch_labels
+        assert(len(batch_k_mat) == len(batch_labels))
+        return [batch_rgb_input, batch_radar_input, batch_k_mat], batch_labels
 
     # def _augment_data(self, rgb_image, radar_detections, K, H_gt, image_original_height, image_original_width):
     #     """

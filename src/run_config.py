@@ -32,7 +32,6 @@ class RunConfig:
         # self.mid_layer_activations = LeakyReLU
 
         # Data.
-        #self.dataset_path = "/home/schnettler/providentia/data/calibration_data/datasets/mp10_near_bag/samples/"
         self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET/"
         self.dataset_names = ["nuscenes_01_04_RADNET", "nuscenes_05_RADNET", "nuscenes_06_RADNET","nuscenes_07_RADNET", "nuscenes_08_RADNET"]
         # Datasets for testing

@@ -48,6 +48,31 @@ def load_radnet_training_sample(sample_file):
 
     return [rgb_image, radar_input], label
 
+
+def load_radnet_training_sample_with_intrinsics(sample_file):
+    """
+    Returns content of calibration data sample
+
+    Parameters
+    ----------
+    sample_file : string
+        Path to sample file
+
+    Returns
+    -------
+    [rgb_image, radar_input, k_mat] : [ndarray, ndarray, ndarray]
+        tuple of rgb image, projected radar detections and camera intrinsics matrix
+    label : ndarray
+        Quaternions of inverse decalibration rotation
+    """
+    with load_np_file(sample_file) as sample:
+        rgb_image = sample["rgb_image"]
+        radar_input = get_projections_from_npz_file(sample, "projections_decalib")
+        k_mat = sample["K"]
+        label = sample["decalib"][:4] # crop translation from decalibration
+
+    return [rgb_image, radar_input, k_mat], label
+
 def load_data_from_samples(dataset_path, file_list, keys):
     """
     Returns a list of ndarrays corresponding to the list of keys

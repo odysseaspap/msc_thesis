@@ -48,10 +48,14 @@ class RadNet:
             radar_stream_out = MaxPooling2D(pool_size=(4,4))(radar_input)
         
         with tf.name_scope('calibration_block'):
-            output = self._calibration_block(rgb_stream_out, radar_stream_out)
+            predicted_decalib_transform = self._calibration_block(rgb_stream_out, radar_stream_out)
+
+        with tf.name_scope('se3_block'):
+            k_mat = Input(shape=(3, 4))
+            output = self._se3_block(predicted_decalib_transform, k_mat)
 
         # Compose model.
-        return Model(inputs=[rgb_input, radar_input], outputs=output)
+        return Model(inputs=[rgb_input, radar_input, k_mat], outputs=output)
 
     def _rgb_stream(self, rgb_input):
         pretrained_out = self._pretrained_block(rgb_input)
@@ -93,7 +97,23 @@ class RadNet:
             drop_1 = keras.layers.Dropout(self._drop_rate)(fc_1)
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
-            output = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
+            predicted_decalib_transform = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
+        return predicted_decalib_transform
+
+    def _se3_block(self, predicted_decalib_transform, k_mat):
+        """
+        TODO: Modify the following operations from CalibNet
+        # se(3) -> SE(3) for the whole batch
+        predicted_transforms = tf.map_fn(lambda x:exponential_map_single(output_vectors[x]), elems=tf.range(0, batch_size, 1), dtype=tf.float32)
+
+        # transforms depth maps by the predicted transformation
+        depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, predicted_transforms[x], K_final, small_transform), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
+
+        # transforms depth maps by the expected transformation
+        depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
+        """
+        output = predicted_decalib_transform
+
         return output
 
     @property
