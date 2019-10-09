@@ -171,7 +171,7 @@ def tokens_to_data_pairs(nusc: NuScenes,
 def get_rad_to_cam(nusc: NuScenes, cam_sd_token: str, rad_sd_token: str):
     """
     Method to get the extrinsic calibration matrix from radar_front to camera_front
-    for a specifi sample.
+    for a specific sample.
     Every sample_data has a record on which calibrated - sensor the
     data is collected from ("calibrated_sensor_token" key)
     The calibrated_sensor record consists of the definition of a
@@ -179,7 +179,6 @@ def get_rad_to_cam(nusc: NuScenes, cam_sd_token: str, rad_sd_token: str):
     :param nusc: Nuscenes instance
     :param cam_sd_token : A token of a specific camera_front sample_data
     :param rad_sd_token : A token of a specific radar_front sample_data
-    :param nuscenes_way : Temporal debug param until transformation order is clear
     :return: rad_to_cam <np.float: 4, 4> Returns homogeneous transform matrix from radar to camera
     """
     cam_cs_token = nusc.get('sample_data', cam_sd_token)["calibrated_sensor_token"]

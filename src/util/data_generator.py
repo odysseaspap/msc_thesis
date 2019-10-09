@@ -71,7 +71,7 @@ class DataGenerator(keras.utils.Sequence):
         batch_labels = np.empty((self.batch_size, 4))
         # Load and augment data samples
         for i, ID in enumerate(list_IDs_batch):
-            [batch_rgb_input[i,], batch_radar_input[i,], batch_k_mat[i,]], batch_labels[i,] = dl.load_radnet_training_sample_with_intrinsics(str(ID))
+            [batch_rgb_input[i,], batch_radar_input[i,], batch_k_mat[i,]], batch_labels[i,] = dl.load_radnet_training_sample_with_intrinsics_gt_decalib(str(ID))
             # exchange radar input and label in case augmented data has to be used
             if self.use_augmented_data == True:
                 projection_aug, label_aug = dl.load_augmented_projection_sample(self.path_augmented_data + str(ID).split("/")[-1])

@@ -1,8 +1,10 @@
 import tensorflow as tf
+from tensorflow_graphics.geometry.transformation import quaternion as tfg_quaternion
+from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfg_rot_mat
 import keras
 from keras import backend, optimizers
 from keras.callbacks import ModelCheckpoint, Callback
-from keras.layers import Dense, Input, Flatten, MaxPooling2D, Conv2D
+from keras.layers import Dense, Input, Flatten, MaxPooling2D, Conv2D, Lambda
 from keras.layers import concatenate
 from keras.models import Model, load_model  # basic class for specifying and training a neural network
 #from keras.utils import plot_model
@@ -11,7 +13,8 @@ from keras.utils.vis_utils import plot_model
 
 from keras.applications import mobilenet
 from mlpconv_layer import *
-
+from util import all_transformer as at3
+from util.Lie_functions import exponential_map_single
 
 class RadNet:
 
@@ -48,14 +51,17 @@ class RadNet:
             radar_stream_out = MaxPooling2D(pool_size=(4,4))(radar_input)
         
         with tf.name_scope('calibration_block'):
-            predicted_decalib_transform = self._calibration_block(rgb_stream_out, radar_stream_out)
+            predicted_decalib_quat = self._calibration_block(rgb_stream_out, radar_stream_out)
 
         with tf.name_scope('se3_block'):
-            k_mat = Input(shape=(3, 4))
-            output = self._se3_block(predicted_decalib_transform, k_mat)
+            # has to take as argument either this or radar_stream_out (the max pooled version)
+            # radar_input = Input(shape=self._radar_shape)
+            k_mat = Input(shape=(3, 3))
+            decalib_qt_trans = Input(shape=(3, 1))
+            output = self._se3_block(predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans)
 
         # Compose model.
-        return Model(inputs=[rgb_input, radar_input, k_mat], outputs=output)
+        return Model(inputs=[rgb_input, radar_input, k_mat, decalib_qt_trans], outputs=output)
 
     def _rgb_stream(self, rgb_input):
         pretrained_out = self._pretrained_block(rgb_input)
@@ -97,22 +103,32 @@ class RadNet:
             drop_1 = keras.layers.Dropout(self._drop_rate)(fc_1)
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
-            predicted_decalib_transform = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
-        return predicted_decalib_transform
+            predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
+        return predicted_decalib_quat
 
-    def _se3_block(self, predicted_decalib_transform, k_mat):
-        """
-        TODO: Modify the following operations from CalibNet
-        # se(3) -> SE(3) for the whole batch
-        predicted_transforms = tf.map_fn(lambda x:exponential_map_single(output_vectors[x]), elems=tf.range(0, batch_size, 1), dtype=tf.float32)
+    def _se3_block(self, predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans):
+
+        # TODO: Modify the following operations from CalibNet
+        # se(3) -> SE(3) (for the whole batch)
+        # exp map takes as input a 1x6 vector of which the first part is the translation vector and the last the rotation
+        # predicted_transforms = tf.map_fn(lambda x:exponential_map_single(output_vectors[x]), elems=tf.range(0, batch_size, 1), dtype=tf.float32)
+        # predicted_transforms = Lambda(exponential_map_single(predicted_decalib_quat))
+        predicted_decalib_quat_normalized = tfg_quaternion.normalize(predicted_decalib_quat)
+        predicted_rot_mat = tfg_rot_mat.from_quaternion(predicted_decalib_quat_normalized)
+        paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
+        predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
+
+        decalib_qt_trans_augm = tf.pad(decalib_qt_trans, paddings, constant_values=1)
+
+        predicted_transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
 
         # transforms depth maps by the predicted transformation
-        depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, predicted_transforms[x], K_final, small_transform), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
-
+        # depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, predicted_transforms[x], K_final, small_transform), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
+        depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
         # transforms depth maps by the expected transformation
-        depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
-        """
-        output = predicted_decalib_transform
+        # depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
+
+        output = predicted_decalib_quat
 
         return output
 

@@ -49,7 +49,7 @@ def load_radnet_training_sample(sample_file):
     return [rgb_image, radar_input], label
 
 
-def load_radnet_training_sample_with_intrinsics(sample_file):
+def load_radnet_training_sample_with_intrinsics_gt_decalib(sample_file):
     """
     Returns content of calibration data sample
 
@@ -60,18 +60,22 @@ def load_radnet_training_sample_with_intrinsics(sample_file):
 
     Returns
     -------
-    [rgb_image, radar_input, k_mat] : [ndarray, ndarray, ndarray]
-        tuple of rgb image, projected radar detections and camera intrinsics matrix
+    [rgb_image, radar_input, k_mat, label] : [ndarray, ndarray, ndarray, ndarray]
+        tuple of rgb image, projected radar detections, camera intrinsics matrix
+        and ground truth quaternion and translation inverse decalibration
     label : ndarray
-        Quaternions of inverse decalibration rotation
+        7x1 vector: 1x4 Quaternions of inverse decalibration rotation
+        and 1x3 translation vector which represents ground truth (inverse)
+        translation decalibration
     """
     with load_np_file(sample_file) as sample:
         rgb_image = sample["rgb_image"]
         radar_input = get_projections_from_npz_file(sample, "projections_decalib")
-        k_mat = sample["K"]
-        label = sample["decalib"][:4] # crop translation from decalibration
+        k_mat = sample["K"][:, :3]
+        transl_label = sample["decalib"][4:]
+        label = sample["decalib"]
 
-    return [rgb_image, radar_input, k_mat], label
+    return [rgb_image, radar_input, k_mat, transl_label], label
 
 def load_data_from_samples(dataset_path, file_list, keys):
     """
