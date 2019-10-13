@@ -42,7 +42,7 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     """
     Creates 3d sampling meshgrid
     """
-
+    batch_size = tf.shape(depth_img)[0]
     x_index = tf.linspace(-1.0, 1.0, width)
     y_index = tf.linspace(-1.0, 1.0, height)
     z_index = tf.range(0, width*height)
@@ -120,12 +120,15 @@ def get_pixel_value(img, x, y):
 
     with tf.device('/cpu:0'):
         indices = tf.stack([y, x], 2)
-        indices = tf.reshape(indices, (375*1242, 2))
+        indices = tf.reshape(indices, (IMG_HT*IMG_WDT, 2))
         values = tf.reshape(img, [-1])
 
         Y = indices[:,0]
         X = indices[:,1]
-        Z = (X + Y)*(X + Y + 1)/2 + Y
+        Z1 = (X + Y)*(X + Y + 1)/2
+        #Y is int32 but Z1 results in float64 type on the laptop CPU
+        Z1 = tf.cast(Z1, 'int32')
+        Z = Z1 + Y
 
         filtered, idx = tf.unique(tf.squeeze(Z))
         updated_values  = tf.unsorted_segment_max(values, idx, tf.shape(filtered)[0])

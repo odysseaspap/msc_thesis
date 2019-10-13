@@ -106,29 +106,36 @@ class RadNet:
             predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
         return predicted_decalib_quat
 
-    def _se3_block(self, predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans):
+    def _spatial_transformer_layers(self, predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans):
 
         # TODO: Modify the following operations from CalibNet
         # se(3) -> SE(3) (for the whole batch)
         # exp map takes as input a 1x6 vector of which the first part is the translation vector and the last the rotation
         # predicted_transforms = tf.map_fn(lambda x:exponential_map_single(output_vectors[x]), elems=tf.range(0, batch_size, 1), dtype=tf.float32)
-        # predicted_transforms = Lambda(exponential_map_single(predicted_decalib_quat))
+        # Create augmented transform matrix from predicted quaternion and ground truth translation vector
+        # (radnet estimates only the quaternion decalibration)
         predicted_decalib_quat_normalized = tfg_quaternion.normalize(predicted_decalib_quat)
         predicted_rot_mat = tfg_rot_mat.from_quaternion(predicted_decalib_quat_normalized)
         paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
         predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
-
         decalib_qt_trans_augm = tf.pad(decalib_qt_trans, paddings, constant_values=1)
-
         predicted_transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
 
         # transforms depth maps by the predicted transformation
-        # depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, predicted_transforms[x], K_final, small_transform), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
-        depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
+        batch_size = tf.shape(radar_input)[0]
+        depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
+        #depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
+
         # transforms depth maps by the expected transformation
         # depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
 
-        output = predicted_decalib_quat
+        output_tuple = (depth_maps_predicted, cloud_pred)
+
+        return output_tuple
+
+    def _se3_block(self, predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans):
+        # TODO: Lambda are more suitable for small operatios. Better to follow this: https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer
+        output = Lambda(self._spatial_transformer_layers(predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans))
 
         return output
 
