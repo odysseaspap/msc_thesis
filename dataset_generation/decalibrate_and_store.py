@@ -46,11 +46,11 @@ from nuscenes.utils.geometry_utils import view_points, transform_matrix
 
 #Config parameters
 ROTATION_STD = 10. # Degrees
-TRANSLATION_STD = 0.1 # Cm
+TRANSLATION_STD = 0 # meters
 static_decalib = False
 
 IMAGE_WIDTH = 240
-IMAGE_HEIGHT = 150
+IMAGE_HEIGHT = 135
 debug_circle_size = 2
 
 ORIGINAL_WIDTH = 1600
@@ -273,10 +273,10 @@ def create_and_store_samples(image_radar_pairs: List,
 
                 # Convert to pixel coordinates, write in the matrix and draw dots on debug image.
                 if (u, v, inv_depth, u_true, v_true, inv_depth_true) != None:
-                    v /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
-                    u /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
-                    v_true /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
-                    u_true /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
+                    #v /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
+                    #u /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
+                    #v_true /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
+                    #u_true /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
                     u, v, v_true, u_true = int(u), int(v), int(v_true), int(u_true)
                     if valid_pixel_coordinates(u, v, IMAGE_HEIGHT, IMAGE_WIDTH):
                         projection_decalibrated[v][u] = inv_depth
@@ -370,7 +370,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_test', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_test_K_scale', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()
@@ -450,15 +450,22 @@ def main():
     #Load H_gt and K matrices for each sample_data record
     rad_to_cam_calibration_matrices = []
     cam_intrinsics = []
-    print(len(image_radar_pairs))
+    #print(len(image_radar_pairs))
+    # scale factor for camera intrinsics accordingly to the resize we perform on the images
+    scale_factor = (IMAGE_HEIGHT / ORIGINAL_HEIGHT )
     for i in range(len(image_radar_pairs)):
         cam_cs_token = nusc.get('sample_data', cam_sd_tokens[i])["calibrated_sensor_token"]
         cam_cs_rec = nusc.get('calibrated_sensor', cam_cs_token)
         K = np.array(cam_cs_rec["camera_intrinsic"])
+        K_scaled = K
+        K_scaled[0][0] *= scale_factor
+        K_scaled[0][2] *= scale_factor
+        K_scaled[1][1] *= scale_factor
+        K_scaled[1][2] *= scale_factor
         #nuscenes K is 3x3 and we augment it to 3x4 with an extra zero column
         #since it will be used for mult witl 4x4 H_gt matrix
-        K = np.hstack((K, np.zeros((K.shape[0], 1), dtype=K.dtype)))
-        cam_intrinsics.append(K)
+        K_scaled = np.hstack((K_scaled, np.zeros((K.shape[0], 1), dtype=K.dtype)))
+        cam_intrinsics.append(K_scaled)
         H_gt = get_rad_to_cam(nusc, cam_sd_tokens[i], rad_sd_tokens[i])
         rad_to_cam_calibration_matrices.append(H_gt)
 

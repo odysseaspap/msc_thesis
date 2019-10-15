@@ -22,6 +22,9 @@ class RunConfig:
         # Network params.
         self.length_error_weight = 0.005
 
+        self.photometric_loss_factor = 1.0
+        self.point_cloud_loss_factor = 1.0
+
         self.drop_rate = 0.5
         self.l2_reg = 0.00 #0.004
         #self.weight_init = 'glorot_normal'
@@ -32,8 +35,13 @@ class RunConfig:
         # self.mid_layer_activations = LeakyReLU
 
         # Data.
-        self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET/"
-        self.dataset_names = ["nuscenes_01_04_RADNET", "nuscenes_05_RADNET", "nuscenes_06_RADNET","nuscenes_07_RADNET", "nuscenes_08_RADNET"]
+        #Gcloud folders
+        #self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET/"
+        #self.dataset_names = ["nuscenes_01_04_RADNET", "nuscenes_05_RADNET", "nuscenes_06_RADNET","nuscenes_07_RADNET", "nuscenes_08_RADNET"]
+
+        #Local PC folders
+        self.general_dataset_folder_path = "/home/odysseas/thesis/data/sets/other/nuscenes_RADNET_mini/"
+        self.dataset_names = [""]
         # Datasets for testing
         # self.dataset_names = ["mp10_near_bag75-76", "mp10_near_bag77-78"]
         # self.dataset_names = ["mp09_near_bag00-01_opt", "mp09_near_bag02-03_opt", "mp09_near_bag04-05_opt"]

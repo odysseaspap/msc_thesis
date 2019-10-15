@@ -42,7 +42,6 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     """
     Creates 3d sampling meshgrid
     """
-    batch_size = tf.shape(depth_img)[0]
     x_index = tf.linspace(-1.0, 1.0, width)
     y_index = tf.linspace(-1.0, 1.0, height)
     z_index = tf.range(0, width*height)

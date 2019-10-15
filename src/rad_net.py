@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tensorflow_graphics.geometry.transformation import quaternion as tfg_quaternion
-from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfg_rot_mat
+from util import quaternion_ops as qt_ops
 import keras
 from keras import backend, optimizers
 from keras.callbacks import ModelCheckpoint, Callback
@@ -14,7 +13,6 @@ from keras.utils.vis_utils import plot_model
 from keras.applications import mobilenet
 from mlpconv_layer import *
 from util import all_transformer as at3
-from util.Lie_functions import exponential_map_single
 
 class RadNet:
 
@@ -57,11 +55,11 @@ class RadNet:
             # has to take as argument either this or radar_stream_out (the max pooled version)
             # radar_input = Input(shape=self._radar_shape)
             k_mat = Input(shape=(3, 3))
-            decalib_qt_trans = Input(shape=(3, 1))
-            output = self._se3_block(predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans)
+            decalib_gt_trans = Input(shape=(3, 1))
+            output = self._se3_block(predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans)
 
         # Compose model.
-        return Model(inputs=[rgb_input, radar_input, k_mat, decalib_qt_trans], outputs=output)
+        return Model(inputs=[rgb_input, radar_input, k_mat, decalib_gt_trans], outputs=output)
 
     def _rgb_stream(self, rgb_input):
         pretrained_out = self._pretrained_block(rgb_input)
@@ -106,36 +104,52 @@ class RadNet:
             predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
         return predicted_decalib_quat
 
-    def _spatial_transformer_layers(self, predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans):
+    def _spatial_transformer_layers(self, input_list):
+        """
+        Creates the predicted transform matrix from the predicted quaternion and the ground truth translation decalib vector.
+        Then, it applies the transform to the depth image (radar_input) and extracts the predicted depth map and the
+        predicted radar point cloud via a 3D Sampling Grid and Bilinear Interpolation.
 
+        :param input_list: [predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans] =
+        [(batch_size, 4, 1), (batch_size, 150, 240, 1), (batch_size, 3, 3), (batch_size, 3, 1)]
+        :return: List with [predicted_depth_map, cloud_pred, radar_input]
+
+        """
         # TODO: Modify the following operations from CalibNet
+        predicted_decalib_quat = input_list[0]
+        radar_input = input_list[1]
+        k_mat = input_list[2]
+        decalib_gt_trans = input_list[3]
+
         # se(3) -> SE(3) (for the whole batch)
-        # exp map takes as input a 1x6 vector of which the first part is the translation vector and the last the rotation
-        # predicted_transforms = tf.map_fn(lambda x:exponential_map_single(output_vectors[x]), elems=tf.range(0, batch_size, 1), dtype=tf.float32)
         # Create augmented transform matrix from predicted quaternion and ground truth translation vector
-        # (radnet estimates only the quaternion decalibration)
-        predicted_decalib_quat_normalized = tfg_quaternion.normalize(predicted_decalib_quat)
-        predicted_rot_mat = tfg_rot_mat.from_quaternion(predicted_decalib_quat_normalized)
-        paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
-        predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
-        decalib_qt_trans_augm = tf.pad(decalib_qt_trans, paddings, constant_values=1)
-        predicted_transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
+        predicted_transform_augm = qt_ops.transform_from_quat_and_trans(predicted_decalib_quat, decalib_gt_trans)
 
         # transforms depth maps by the predicted transformation
         batch_size = tf.shape(radar_input)[0]
+        #print(batch_size)
         depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
         #depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
 
         # transforms depth maps by the expected transformation
         # depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
 
-        output_tuple = (depth_maps_predicted, cloud_pred)
+        #Return radar input to use it in loss function
 
-        return output_tuple
+        return [depth_maps_predicted, cloud_pred, radar_input, k_mat]
 
-    def _se3_block(self, predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans):
-        # TODO: Lambda are more suitable for small operatios. Better to follow this: https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer
-        output = Lambda(self._spatial_transformer_layers(predicted_decalib_quat, radar_input, k_mat, decalib_qt_trans))
+    def _se3_block(self, predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans):
+        # TODO: Check if I should create a new custom Layer instead of using Lambda
+        # The below has 0 trainable parameters - is this correct?
+        # From gvnn paper pg10 (where CalibNet took 3D ST layers from) :
+        """
+        In this work, we bridge the gap between learning and geometry
+        based methods with our 3D Spatial Transformer module which explicitly defines
+        these operations as layers that act as computational blocks with no learning
+        parameters but allow backpropagation from the cost function to the input layers
+        """
+        # https://github.com/keras-team/keras/issues/7078
+        output = Lambda(self._spatial_transformer_layers)([predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans])
 
         return output
 

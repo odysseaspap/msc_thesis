@@ -45,7 +45,7 @@ import util.create_decalibration as dec
 from util.radar_reprojection_manager import RadarReprojectionManager
 from util.radar_reprojection_manager_batch import RadarBatchReprojectionManager
 import paper_visualizations as pv
-
+import custom_loss_functions as loss_fn
 import pandas as pd
 
 from rad_net import RadNet
@@ -60,51 +60,6 @@ model_2_name = "model_2"
 model_3_name = "model_3"
 
 
-def keras_weighted_quaternion_translation_loss_NUSCENES(alpha):
-    """
-    Keras wrapper function for using weighted dual quaternion distance.
-    Added extra term to penalize roll angle errors more than the rest,
-    because automotive radar detections lie on the same line making roll angle
-    changes not so important which leads to poor accuracy for this angle
-    """
-    def loss(y_true, y_pred):
-        return weighted_quaternion_translation_loss_NUSCENES(y_true, y_pred, alpha)
-    return loss
-
-def weighted_quaternion_translation_loss_NUSCENES(y_true, y_pred, alpha):
-    diff = (y_true - y_pred)**2 
-    # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
-    eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1))) + 0.15 * met.pan_error(y_true, y_pred) #+ 0.0075 * alpha * met.roll_error(y_true, y_pred)
-    #eucl_dist = 0.05*met.tilt_error(y_true, y_pred) * 0.9*met.pan_error(y_true, y_pred) + 0.05*met.roll_error(y_true, y_pred)
-    
-    return eucl_dist
-
-def keras_weighted_quaternion_translation_loss(alpha):
-    """
-    Keras wrapper function for using weighted dual quaternion distance.
-    """
-    def loss(y_true, y_pred):
-        return weighted_quaternion_translation_loss(y_true, y_pred, alpha)
-    return loss
-
-def weighted_quaternion_translation_loss(y_true, y_pred, alpha):
-    diff = (y_true - y_pred)**2
-    # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
-    eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1)))
-    return eucl_dist
-
-    # quat_true = y_true
-    # quat_pred = y_pred
-    # quat_true = quatops.normalize_quaternions(quat_true)
-    # quat_pred = quatops.normalize_quaternions(quat_pred)
-
-    # quat_dist = tf.constant(1.0, dtype=tf.float32) - tf.abs(quatops.batchwise_dot_product(quat_true, quat_pred))
-    # quat_norm = tf.math.sqrt(tf.reduce_sum(y_pred**2, 1))
-    # quat_length_error = tf.math.abs(tf.constant(1.0, dtype=tf.float32) - quat_norm)
-    # quat_dist = tf.squeeze(quat_dist)
-
-    # # alpha = 0.005
-    # return tf.reduce_mean(quat_dist + alpha * quat_length_error)
 
 def save_minimum_loss_and_metrics(history, output_folder):
     min_value_file = open(output_folder + 'loss_metrics_minima.txt', 'w')
@@ -148,10 +103,10 @@ def get_metrics():
     # metrics.append(rot_loss)
     # metrics.append(trans_loss)
     # Metrics.
-    metrics.append(met.rot_angle_error)
-    metrics.append(met.tilt_error)
-    metrics.append(met.pan_error)
-    metrics.append(met.roll_error)
+    #metrics.append(met.rot_angle_error)
+    #metrics.append(met.tilt_error)
+    #metrics.append(met.pan_error)
+    #metrics.append(met.roll_error)
     # metrics.append(trans_error)
     # metrics.append(trans_error_x)
     # metrics.append(trans_error_y)
@@ -192,8 +147,8 @@ def train_model(samples_list_train, samples_list_val, model_name):
     # Train model.
     optimizer = optimizers.Adam(lr=run_config.lr)
     #model.compile(loss=keras.losses.mean_squared_error, optimizer=optimizer, metrics=get_metrics())
-    model.compile(loss=keras_weighted_quaternion_translation_loss(run_config.length_error_weight),
-                  optimizer=optimizer, metrics=get_metrics())
+    model.compile(loss=loss_fn.keras_photometric_and_3d_pointcloud_loss(run_config.photometric_loss_factor, run_config.point_cloud_loss_factor),
+                  optimizer=optimizer)#, metrics=get_metrics())
     callback_list = create_callbacks(model_name)
     history = model.fit_generator(generator=training_generator, validation_data=validation_generator,
                                   epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6)

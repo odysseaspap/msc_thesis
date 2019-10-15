@@ -72,10 +72,19 @@ def load_radnet_training_sample_with_intrinsics_gt_decalib(sample_file):
         rgb_image = sample["rgb_image"]
         radar_input = get_projections_from_npz_file(sample, "projections_decalib")
         k_mat = sample["K"][:, :3]
-        transl_label = sample["decalib"][4:]
+
+        # Scale fx, fy, cx, cy because the Grid of ST layers is in normalized [-1,1] pixel coordinates
+        #img_width = rgb_image[1]
+        #img_height = rgb_image[0]
+        #k_mat[0][0] = 2 * (k_mat[0][0]) / np.float32(img_width - 1)  # focal length x scaled for -1 to 1 range
+        #k_mat[1][1] = 2 * (k_mat[1][1]) / np.float32(img_height - 1)  # focal length y scaled for -1 to 1 range
+        #k_mat[0][2] = -1 + 2 * (k_mat[0][2] - 1.0) / np.float32( img_width - 1)  # optical center x scaled for -1 to 1 range
+        #k_mat[1][2] = -1 + 2 * (k_mat[1][2] - 1.0) / np.float32( img_height - 1)  # optical center y scaled for -1 to 1 range
+
+        trans_label = sample["decalib"][4:]
         label = sample["decalib"]
 
-    return [rgb_image, radar_input, k_mat, transl_label], label
+    return [rgb_image, radar_input, k_mat, trans_label], label
 
 def load_data_from_samples(dataset_path, file_list, keys):
     """

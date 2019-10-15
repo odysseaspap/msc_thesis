@@ -1,5 +1,6 @@
 import tensorflow as tf
-
+from tensorflow_graphics.geometry.transformation import quaternion as tfg_quaternion
+from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfg_rot_mat
 
 def split_dual_quaternions(quat):
     """
@@ -42,3 +43,20 @@ def compute_delta_quaternion(y_true, y_pred):
     decalib = conjugate_quaternions(quat_true)
     delta_quaternion = multiply_quaternions(decalib_hat_inverse, decalib)
     return delta_quaternion
+
+def transform_from_quat_and_trans(quaternion, trans_vector):
+    """
+    Method that creates an augmented transform which includes the batch size
+    in the output shape
+    :param quaternion: ( batch_size, 4, 1 ) quaternion vectors
+    :param trans_vector: (batch_size, 3, 1) translation vectors
+    :return: transform_augm (batch_size, 4, 4) augmented transform matrix
+    """
+    quat_normalized = tfg_quaternion.normalize(quaternion)
+    predicted_rot_mat = tfg_rot_mat.from_quaternion(quat_normalized)
+    paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
+    predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
+    decalib_qt_trans_augm = tf.pad(trans_vector, paddings, constant_values=1)
+    transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
+
+    return transform_augm
