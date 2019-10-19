@@ -67,7 +67,7 @@ class DataGenerator(keras.utils.Sequence):
         # Initialization
         batch_rgb_input = np.empty((self.batch_size, *self.dim, self.image_channels))
         batch_radar_input = np.empty((self.batch_size, *self.dim, self.radar_channels))
-        batch_k_mat = np.empty((self.batch_size, (3, 4)))
+        batch_k_mat = np.empty((self.batch_size, 3, 3))
         batch_trans_label = np.empty((self.batch_size, 3))
         batch_labels = np.empty((self.batch_size, 7))
 
@@ -86,7 +86,13 @@ class DataGenerator(keras.utils.Sequence):
         assert(len(batch_rgb_input) == len(batch_labels))
         assert(len(batch_radar_input) == len(batch_labels))
         assert(len(batch_k_mat) == len(batch_labels))
-        return [batch_rgb_input, batch_radar_input, batch_k_mat, batch_trans_label], batch_labels
+        assert(len(batch_trans_label) == len(batch_labels))
+
+        # We have to provide one label array for each output array of RadNet
+        # Unless an output is ommited from the loss functions dict, then we must provide
+        # as many labels as outputs used
+        # Currently, depth_maps_pred and cloud_pred are combined in one loss function
+        return [batch_rgb_input, batch_radar_input, batch_k_mat, batch_trans_label], [batch_labels, batch_labels]
 
     # def _augment_data(self, rgb_image, radar_detections, K, H_gt, image_original_height, image_original_width):
     #     """

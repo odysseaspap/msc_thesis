@@ -12,7 +12,7 @@ shape = (IMG_HT, IMG_WDT)
 
 def _simple_transformer(depth_map, t_mat, k_mat):
 
-    batch_grids, transformed_depth_map, sparse_cloud  = _3D_meshgrid_batchwise_diff(IMG_HT, IMG_WDT, depth_map, t_mat, k_mat)
+    batch_grids, transformed_depth_map, sparse_cloud = _3D_meshgrid_batchwise_diff(IMG_HT, IMG_WDT, depth_map, t_mat, k_mat)
 
     x_all = tf.reshape(batch_grids[:,0], (IMG_HT, IMG_WDT))
     y_all = tf.reshape(batch_grids[:,1], (IMG_HT, IMG_WDT))

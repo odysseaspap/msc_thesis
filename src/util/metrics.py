@@ -1,7 +1,7 @@
 import math
 import tensorflow as tf
 import util.quaternion_ops as quat
-
+import keras.backend as K
 
 def rot_angle_error(y_true, y_pred):
     """
@@ -12,9 +12,9 @@ def rot_angle_error(y_true, y_pred):
     https://math.stackexchange.com/questions/90081/quaternion-distance and verified in
     https://link.springer.com/article/10.1007%2Fs10851-009-0161-2 (Du Q.Huynh, Section 3.4)
     """
-    quat_true = y_true
+    quat_true = y_true[:, :4]
     quat_pred = y_pred
-#     quat_pred = tf.split(y_pred, [4, 1], axis=-1)[0]
+    #quat_pred = tf.split(y_pred, [4, 1], axis=-1)[0]
     # quat_true = tf.split(y_true, [4, 3], axis=1)[0]
     # quat_pred = tf.split(y_pred, [4, 3], axis=1)[0]
     quat_true = quat.normalize_quaternions(quat_true)
@@ -30,6 +30,7 @@ def rot_angle_error(y_true, y_pred):
         return tf.reduce_mean(diffs_deg)
 
 def tilt_error(y_true, y_pred):
+    y_true = y_true[:, :4]
     delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
     q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
     t0 = 2.*(q0*q1 + q2*q3)
@@ -42,6 +43,7 @@ def tilt_error(y_true, y_pred):
 	# X = math.degrees(math.atan2(t0, t1))
 
 def pan_error(y_true, y_pred):
+    y_true = y_true[:, :4]
     delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
     q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
     t0 = 2.*(q0*q2 + q3*q1)
@@ -55,6 +57,7 @@ def pan_error(y_true, y_pred):
 	# Y = math.degrees(math.asin(t2))
 
 def roll_error(y_true, y_pred):
+    y_true = y_true[:, :4]
     delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
     q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
     t0 = 2.*(q0*q3 + q1*q2)
@@ -97,4 +100,3 @@ def trans_error_z(y_true, y_pred):
     trans_true = y_true
     trans_pred = y_pred
     return tf.reduce_mean(tf.sqrt(tf.square(trans_true[:, 2] - trans_pred[:, 2]))) # Euclidean distance.
-    

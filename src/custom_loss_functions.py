@@ -1,9 +1,10 @@
 import tensorflow as tf
+import keras.backend as K
 from util import all_transformer as at3
 from util import quaternion_ops as qt_ops
 #from util import model_utils
 
-def keras_photometric_and_3d_pointcloud_loss(alpha = 1.0, beta = 1.0):
+def keras_photometric_and_3d_pointcloud_loss(radar_input, k_mat, depth_maps_predicted, cloud_pred, alpha = 1.0, beta = 1.0):
     """
     Keras wrapper function for using weighted dual quaternion distance.
     Added extra term to penalize roll angle errors more than the rest,
@@ -12,11 +13,11 @@ def keras_photometric_and_3d_pointcloud_loss(alpha = 1.0, beta = 1.0):
     """
 
     def loss(y_true, y_pred):
-        return photometric_and_3d_pointcloud_loss(y_true, y_pred, alpha, beta)
+        return photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth_maps_predicted, cloud_pred, alpha, beta)
 
     return loss
 
-def photometric_and_3d_pointcloud_loss(y_true, y_pred, alpha, beta):
+def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth_maps_predicted, cloud_pred, alpha, beta):
     """
     :param y_true: (batch_size, 7, 1) -  ground truth de-calibration
     quaternion (indexes 0-3) and translation (indexes 4-6) vectors
@@ -27,21 +28,21 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, alpha, beta):
 
     :return: float value - Final loss value
     """
+    # TODO: Even though Radnet returns a list of tensors, when we specify a single loss function,
+    # it will use the first output tensor as y_pred and the firts label as y_true.
+    # If we had a second loss function, it would take the second input tensor etc...
 
-    depth_maps_predicted = y_pred[0][0][2]
-    cloud_pred = y_pred[1]
-    radar_input = y_pred[2]
-    k_mat = y_pred[3]
-
-    quat_expected = y_true[:4]
-    print(tf.shape(quat_expected))
-    quat_expected = tf.convert_to_tensor(quat_expected)
-    trans_expected = y_true[4:]
-    trans_expected = tf.convert_to_tensor(trans_expected)
-
-    #T_expected = qt_ops.transform_from_quat_and_trans(quat_expected, trans_expected)
     batch_size = tf.shape(radar_input)[0]
-    T_expected = tf.identity((batch_size, 4, 4))
+    y_true = tf.reshape(y_true, (batch_size, 7))
+
+    quat_expected = y_true[:, :4]
+    #quat_expected = tf.convert_to_tensor(quat_expected)
+    trans_expected = y_true[:, 4:]
+    trans_expected = tf.reshape(trans_expected, (batch_size, 3, 1))
+    #trans_expected = tf.convert_to_tensor(trans_expected)
+
+    T_expected = qt_ops.transform_from_quat_and_trans(quat_expected, trans_expected)
+    #print(K.int_shape(T_expected))
     depth_maps_expected, cloud_exp = tf.map_fn(lambda x: at3._simple_transformer(radar_input[x, :, :, 0], T_expected[x], k_mat[x]), elems=tf.range(0, batch_size, 1), dtype=(tf.float32, tf.float32))
 
     # photometric loss between predicted and expected transformation
@@ -95,6 +96,7 @@ def keras_weighted_quaternion_translation_loss(alpha):
 
 
 def weighted_quaternion_translation_loss(y_true, y_pred, alpha):
+    y_true = y_true[:, :4]
     diff = (y_true - y_pred) ** 2
     # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
     eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1)))
