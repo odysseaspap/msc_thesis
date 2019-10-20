@@ -109,7 +109,8 @@ class RadarBatchReprojectionManager:
 
         # Generate model output.
         model_outputs = model.predict(data)
-        output_quats = model_outputs[:,:4] # Crop noise output.
+        output_quats = model_outputs[0]
+        #output_quats = model_outputs[:,:4] # Crop noise output.
         output_quats = self._normalize_quaternions(output_quats)
 
         # Convert to matrices.

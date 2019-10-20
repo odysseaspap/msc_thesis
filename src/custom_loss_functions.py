@@ -28,9 +28,7 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
 
     :return: float value - Final loss value
     """
-    # TODO: Even though Radnet returns a list of tensors, when we specify a single loss function,
-    # it will use the first output tensor as y_pred and the firts label as y_true.
-    # If we had a second loss function, it would take the second input tensor etc...
+    # In Keras, the i-th loss function uses the i-th pair of output, label as y_pred, y_true.
 
     batch_size = tf.shape(radar_input)[0]
     y_true = tf.reshape(y_true, (batch_size, 7))

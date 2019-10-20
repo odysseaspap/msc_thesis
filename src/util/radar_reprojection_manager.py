@@ -56,6 +56,8 @@ class RadarReprojectionManager:
         inv_depth = 1./plane_point[2]
 
         # Scale coordinates.
+        # NOT needed if intrinsics are already scaled for
+        # new img diensions!!
         v /= (self._orig_height / self._proj_height)
         u /= (self._orig_width / self._proj_width)
         return u, v, inv_depth
@@ -98,7 +100,8 @@ class RadarReprojectionManager:
 
         # Generate model output.
         model_outputs = model.predict(data)
-        output_quats = model_outputs[:,:4] # Crop noise output.
+        output_quats = model_outputs[0]
+        #output_quats = model_outputs[:,:4] # Crop noise output.
         output_quats = self._normalize_quaternions(output_quats)
 
         # Convert to matrices.
@@ -185,7 +188,9 @@ class RadarReprojectionManager:
             Resulting label: residual decalibration
         """
         img, proj_decalib, proj_gt, radar_detections, decalib, K, H_gt, dims = dl.load_complete_sample(sample_file)
-        data = [img, proj_decalib]
+        trans_label = decalib[4:]
+        k_mat = K[:, :3]
+        data = [img, proj_decalib, k_mat, trans_label]
         label = decalib[:4]
         self._H_gt = H_gt
         self._P = K
@@ -194,7 +199,8 @@ class RadarReprojectionManager:
         data = dl.expand_input_data_batchdim(data)
         # Generate model output.
         model_output = model.predict(data)
-        output_quats = model_output[:,:4] # Crop noise output.
+        #output_quats = model_output[:,:4] # Crop noise output.
+        output_quats = model_output[0]
         output_quats = self._normalize_quaternions(output_quats)
 
         # Convert to matrices.
@@ -263,11 +269,13 @@ class RadarReprojectionManager:
             if inv_decalib_hat is not None:
                 input_radar, label = self._correct_projections(label, inv_decalib_hat, H_gt, detections)
                 # projection_corrected = self._project_radar_detections_sample(h_inits_new, detections)
-            
-            model_input = dl.expand_input_data_batchdim([input_img, input_radar])
+            trans_label = label[4:]
+            k_mat = K[:, :3]
+            model_input = dl.expand_input_data_batchdim([input_img, input_radar, k_mat, trans_label])
             model_output = model.predict(model_input)
 
-            output_quats = model_output[:,:4] # Crop noise output.
+            output_quats = model_output[0]
+            #output_quats = model_output[:,:4] # Crop noise output.
             output_quats = self._normalize_quaternions(output_quats)
             inv_decalib_hat = transformations.quaternion_matrix(output_quats[0,:])
 

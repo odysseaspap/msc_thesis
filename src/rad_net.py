@@ -138,7 +138,7 @@ class RadNet:
         # se(3) -> SE(3) (for the whole batch)
         # Create augmented transform matrix from predicted quaternion and ground truth translation vector
         predicted_transform_augm = qt_ops.transform_from_quat_and_trans(predicted_decalib_quat, decalib_gt_trans)
-        print(K.int_shape(predicted_transform_augm))
+        # print(K.int_shape(predicted_transform_augm))
         # transforms depth maps by the predicted transformation
         #print(batch_size)
         depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))

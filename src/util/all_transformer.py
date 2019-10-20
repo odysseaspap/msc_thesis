@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.misc as smc
+import keras.backend as K
 
 from run_config import RunConfig
 run_config = RunConfig()
@@ -23,14 +24,16 @@ def _simple_transformer(depth_map, t_mat, k_mat):
 def sparsify_cloud(S):
 
     """
-    Cluster centers of point clouds used to sparsify cloud for Earth Mover's Distance. Using 4096 centroids
+    Cluster centers of point clouds used to sparsify cloud for Earth Mover's Distance. Using 125 centroids
+    since all radar pcd files have WIDTH 125 (125 radar points in each file)
     """
 
     with tf.device('/cpu:0'):
 
-        point_limit = 4096
+        point_limit = 125
         no_points = tf.shape(S)[0]
         no_partitions = no_points/tf.constant(point_limit, dtype=tf.int32)
+        no_partitions = tf.cast(no_partitions, 'int32')
         saved_points = tf.gather_nd(S, [tf.expand_dims(tf.range(0, no_partitions*point_limit), 1)])
         saved_points = tf.reshape(saved_points, [point_limit, no_partitions, 3])
         saved_points_sparse = tf.reduce_mean(saved_points, 1)
@@ -42,9 +45,26 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     """
     Creates 3d sampling meshgrid
     """
+    # Scale fx, fy, cx, cy because we have resized the image dimensions from 1600x900 to 240x150
+    scale_factor_x = 240 / 1600
+    scale_factor_y = 150 / 900
+    tmp0 = tf.constant([[scale_factor_x, 1.0, scale_factor_x], [1.0, scale_factor_y, scale_factor_y], [1.0, 1.0, 1.0]])
+    tf_K_mat_scaled = tf.math.multiply(tf_K_mat, tmp0)
+
+
+    # Scale fx, fy, cx, cy because the 3D sampling grid is in normalized [-1,1] pixel coordinates,
+    # as stated in the original STN paper and implemented in relevant repo and calibnet
+    tmp1 = tf.constant([[2 / 239, 0.0, 2 / 239], [0.0, 2 / 149, 2 / 149], [0.0, 0.0, 1.0]])
+    tmp2 = tf.constant([[0.0, 0.0, -1.0], [0.0, 0.0, -1.0], [0.0, 0.0, 0.0]])
+
+    tf_K_mat_scaled = tf.math.add(tf_K_mat_scaled, tmp2)
+    tf_K_mat_scaled = tf.math.multiply(tf_K_mat_scaled, tmp1)
+    tf_K_mat_scaled = tf.math.add(tf_K_mat_scaled, tmp2)
+
     x_index = tf.linspace(-1.0, 1.0, width)
     y_index = tf.linspace(-1.0, 1.0, height)
     z_index = tf.range(0, width*height)
+
 
     x_t, y_t = tf.meshgrid(x_index, y_index)
 
@@ -58,11 +78,12 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     ones = tf.ones_like(x_t_flat)
 
     sampling_grid_2d = tf.concat([x_t_flat, y_t_flat, ones], 0)
+    # keep in grid only non-zero depth values
     sampling_grid_2d_sparse = tf.transpose(tf.boolean_mask(tf.transpose(sampling_grid_2d), mask))
     ZZ_saved = tf.boolean_mask(ZZ, mask)
     ones_saved = tf.expand_dims(tf.ones_like(ZZ_saved), 0)
 
-    projection_grid_3d = tf.matmul(tf.matrix_inverse(tf_K_mat), sampling_grid_2d_sparse*ZZ_saved)
+    projection_grid_3d = tf.matmul(tf.matrix_inverse(tf_K_mat_scaled), sampling_grid_2d_sparse*ZZ_saved)
 
     homog_points_3d = tf.concat([projection_grid_3d, ones_saved], 0)
 
@@ -70,15 +91,22 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     final_transformation_matrix = transformation_matrix
     warped_sampling_grid = tf.matmul(final_transformation_matrix, homog_points_3d)
 
-    points_2d = tf.matmul(tf_K_mat, warped_sampling_grid[:3,:])
+    points_2d = tf.matmul(tf_K_mat_scaled, warped_sampling_grid[:3,:])
 
     Z = points_2d[2,:]
-
+    # depth_img pixel values hold the inverse depth
+    # here we need the depth information, se we inverse
+    # each value - At this point Z does not include any zero
+    # values (removed with tf.boolean_mask above)
+    Z = tf.math.reciprocal(Z)
     x_dash_pred = points_2d[0,:]
     y_dash_pred = points_2d[1,:]
     point_cloud = tf.stack([x_dash_pred, y_dash_pred, Z], 1)
-    # Not used since radar points are already too sparse
-    # sparse_point_cloud = sparsify_cloud(point_cloud)
+    # Even though radar point cloud is already sparse,
+    # we use the below to allow the direct shape inference of the pointclouds by Keras: (batch_size, 125, 3)
+    # It does not affect the result since all input pointclouds already have a fixed
+    # number of points (125), if not pre-processed
+    sparse_point_cloud = sparsify_cloud(point_cloud)
 
     x = tf.transpose(points_2d[0,:]/Z)
     y = tf.transpose(points_2d[1,:]/Z)
@@ -99,7 +127,7 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
 
     transformed_depth = tf.reshape(updated_Z, (IMG_HT, IMG_WDT))
 
-    return reprojected_grid, transformed_depth, point_cloud
+    return reprojected_grid, transformed_depth, sparse_point_cloud
 
 def reverse_all(z):
 
@@ -124,13 +152,15 @@ def get_pixel_value(img, x, y):
 
         Y = indices[:,0]
         X = indices[:,1]
+        # The below raises and Error because
+        # Y is int32 but Z1 results in float64 type on the laptop CPU
+        #Z = (X + Y)*(X + Y + 1)/2 + Y
         Z1 = (X + Y)*(X + Y + 1)/2
-        #Y is int32 but Z1 results in float64 type on the laptop CPU
         Z1 = tf.cast(Z1, 'int32')
         Z = Z1 + Y
 
         filtered, idx = tf.unique(tf.squeeze(Z))
-        updated_values  = tf.unsorted_segment_max(values, idx, tf.shape(filtered)[0])
+        updated_values = tf.unsorted_segment_max(values, idx, tf.shape(filtered)[0])
 
         # updated_indices = tf.map_fn(fn=lambda i: reverse(i), elems=filtered, dtype=tf.float32)
         updated_indices = reverse_all(filtered)
