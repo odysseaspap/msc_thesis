@@ -60,9 +60,10 @@ class RadNet:
             these operations as layers that act as computational blocks with no learning
             parameters but allow backpropagation from the cost function to the input layers
             """
-            k_mat = Input(shape=(3, 3))
+            k_mat = Input(shape=(3, 4))
             decalib_gt_trans = Input(shape=(3, ))
             # Wrap Spatial Transformer functions in a Lambda layer
+            #print(K.int_shape(predicted_decalib_quat))
             stl_output = Lambda(self._spatial_transformer_layers, name="ST_Layer")([predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans])
             # Separate the outputs using two "identity" Lambda layers with different naming
             # This way, we can use dictionary to map correctly the losses
@@ -132,18 +133,17 @@ class RadNet:
         k_mat = input_list[2]
         decalib_gt_trans = input_list[3]
 
+        #k_mat_fixed = tf.constant([[1260.8474446004698, 0.0, 807.968244525554], [0.0, 1260.8474446004698, 495.3344268742088], [0.0, 0.0, 1.0]])
+        # se(3) -> SE(3) (for the whole batch):
+        # Create augmented transform matrix from predicted quaternion and ground truth translation vector
         batch_size = tf.shape(radar_input)[0]
         decalib_gt_trans = tf.reshape(decalib_gt_trans, (batch_size, 3, 1))
-        #k_mat_fixed = tf.constant([[1260.8474446004698, 0.0, 807.968244525554], [0.0, 1260.8474446004698, 495.3344268742088], [0.0, 0.0, 1.0]])
-        # se(3) -> SE(3) (for the whole batch)
-        # Create augmented transform matrix from predicted quaternion and ground truth translation vector
         predicted_transform_augm = qt_ops.transform_from_quat_and_trans(predicted_decalib_quat, decalib_gt_trans)
-        # print(K.int_shape(predicted_transform_augm))
-        # transforms depth maps by the predicted transformation
-        #print(batch_size)
-        depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
-        #depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
 
+        # transforms depth maps by the predicted transformation
+        depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
+
+        #depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
         # transforms depth maps by the expected transformation
         # depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
 

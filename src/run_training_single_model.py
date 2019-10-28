@@ -201,10 +201,10 @@ def start_training(samples_list):
     #print(K.int_shape(decalibs))
     #print(K.int_shape(Ks))
     trans_labels = decalibs[:, 4:]
-    k_mats = Ks[:, :, :3]
+    #k_mats = Ks[:, :, :3]
     #print(K.int_shape(trans_labels))
     #print(K.int_shape(k_mats))
-    projections_val_1, labels_val_1 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_decalibrated_val, k_mats, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
+    projections_val_1, labels_val_1 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_decalibrated_val, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
     # save augmented validation samples
     if not os.path.exists(output_path_val):
         os.makedirs(output_path_val)
@@ -329,15 +329,15 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     reprojection_manager = RadarReprojectionManager(run_config.original_resolution, run_config.input_shape, np.identity(4), np.identity(4))
     reprojection_manager_batch = RadarBatchReprojectionManager(run_config.original_resolution, run_config.input_shape)
     trans_labels = decalibs[:, 4:]
-    k_mats = Ks[:, :, :3]
+    #k_mats = Ks[:, :, :3]
     # Apply model.
     print("Applying model...")
     if static_decalib == True:
         print("Static decalibration assumed. Samples get corrected with last estimate before model prediction.")
-        projections_1, labels_1 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_decalib, k_mats, trans_labels], decalibs, radar_detections, H_gts, Ks, dims, model_1)
+        projections_1, labels_1 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_decalib, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, dims, model_1)
        # projections_2, labels_2 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_1], labels_1, radar_detections, H_gts, Ks, dims, model_2)
     else:
-        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections_decalib, k_mats, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
+        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections_decalib, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
         #projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1], labels_1, radar_detections, H_gts, Ks, model_2)
 
     print("Reprojection time: " + str(time() - start_time))
@@ -431,8 +431,8 @@ def cross_evaluate_models_static_decalib(models_path, samples_list):
         # Apply model.
         print("Applying model...")
         trans_labels = decalibs[:, 4:]
-        k_mats = Ks[:, :, :3]
-        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections, k_mats, trans_labels], labels, radar_detections, H_gts, Ks, model_1)
+        #k_mats = Ks[:, :, :3]
+        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections, Ks, trans_labels], labels, radar_detections, H_gts, Ks, model_1)
         #projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1], labels_1, radar_detections, H_gts, Ks, model_2)
         print("Reprojection time: " + str(time() - start_time))
 

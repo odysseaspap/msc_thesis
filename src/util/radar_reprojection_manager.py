@@ -45,7 +45,7 @@ class RadarReprojectionManager:
     def _valid_pixel_coordinates(self, u, v):
         return (u >= 0 and v >= 0 and v < self._proj_height and u < self._proj_width)
 
-    def _compute_pixel_coordinates_and_invdepth(self, H, point):
+    def _compute_pixel_coordinates_and_depth(self, H, point):
         # Project point.
         tmp = np.matmul(H, point.transpose())
         plane_point = np.matmul(self._P, tmp)
@@ -53,22 +53,22 @@ class RadarReprojectionManager:
         # Compute image coordinates.
         u = plane_point[0]/plane_point[2]
         v = plane_point[1]/plane_point[2]
-        inv_depth = 1./plane_point[2]
+        depth = plane_point[2]
 
         # Scale coordinates.
         # NOT needed if intrinsics are already scaled for
         # new img diensions!!
         v /= (self._orig_height / self._proj_height)
         u /= (self._orig_width / self._proj_width)
-        return u, v, inv_depth
+        return u, v, depth
 
     def _project_radar_detections_sample(self, h_init, radar_detections):
         projection_image = np.zeros([self._proj_height, self._proj_width])
         for detection in radar_detections:
-            u, v, inv_depth = self._compute_pixel_coordinates_and_invdepth(h_init, detection)
+            u, v, depth = self._compute_pixel_coordinates_and_depth(h_init, detection)
             u, v = int(u), int(v)
             if self._valid_pixel_coordinates(u, v):
-                projection_image[v][u] = inv_depth
+                projection_image[v][u] = depth
 
         projection_image = np.expand_dims(projection_image, axis=-1)
         return projection_image
@@ -78,10 +78,10 @@ class RadarReprojectionManager:
         for H_init, detections in zip(h_inits, radar_detections):
             projection_image = np.zeros([self._proj_height, self._proj_width])
             for detection in detections:
-                u, v, inv_depth = self._compute_pixel_coordinates_and_invdepth(H_init, detection)
+                u, v, depth = self._compute_pixel_coordinates_and_depth(H_init, detection)
                 u, v = int(u), int(v)
                 if self._valid_pixel_coordinates(u, v):
-                    projection_image[v][u] = inv_depth
+                    projection_image[v][u] = depth
 
             projection_image = np.expand_dims(projection_image, axis=-1)
             projections.append(projection_image)
@@ -189,8 +189,8 @@ class RadarReprojectionManager:
         """
         img, proj_decalib, proj_gt, radar_detections, decalib, K, H_gt, dims = dl.load_complete_sample(sample_file)
         trans_label = decalib[4:]
-        k_mat = K[:, :3]
-        data = [img, proj_decalib, k_mat, trans_label]
+        #k_mat = K[:, :3]
+        data = [img, proj_decalib, K, trans_label]
         label = decalib[:4]
         self._H_gt = H_gt
         self._P = K
@@ -270,8 +270,8 @@ class RadarReprojectionManager:
                 input_radar, label = self._correct_projections(label, inv_decalib_hat, H_gt, detections)
                 # projection_corrected = self._project_radar_detections_sample(h_inits_new, detections)
             trans_label = label[4:]
-            k_mat = K[:, :3]
-            model_input = dl.expand_input_data_batchdim([input_img, input_radar, k_mat, trans_label])
+            #k_mat = K[:, :3]
+            model_input = dl.expand_input_data_batchdim([input_img, input_radar, K, trans_label])
             model_output = model.predict(model_input)
 
             output_quats = model_output[0]

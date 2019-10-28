@@ -71,7 +71,7 @@ def load_radnet_training_sample_with_intrinsics_gt_decalib(sample_file):
     with load_np_file(sample_file) as sample:
         rgb_image = sample["rgb_image"]
         radar_input = get_projections_from_npz_file(sample, "projections_decalib")
-        k_mat = sample["K"][:, :3]
+        k_mat = sample["K"] #[:, :3]
 
         #Scale fx, fy, cx, cy because we have resized the image dimensions from 1600x900 to 240x150
         """ I have to do this in EVERY dataloading method

@@ -21,7 +21,7 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     """
     :param y_true: (batch_size, 7, 1) -  ground truth de-calibration
     quaternion (indexes 0-3) and translation (indexes 4-6) vectors
-    :param y_pred: Output of RadNet++  [(batch_size, H, W), (batch_size, num_points, 3), (batch_size, H, W, 1)]
+    :param y_pred: Output of RadNet [(batch_size, H, W), (batch_size, num_points, 3), (batch_size, H, W, 1)]
     [depth_map_predicted, cloud_predicted, radar_input]
     :param alpha: float value - photometric loss weight
     :param beta: float value - 3D point cloud loss weight
@@ -34,14 +34,12 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     y_true = tf.reshape(y_true, (batch_size, 7))
 
     quat_expected = y_true[:, :4]
-    #quat_expected = tf.convert_to_tensor(quat_expected)
     trans_expected = y_true[:, 4:]
     trans_expected = tf.reshape(trans_expected, (batch_size, 3, 1))
-    #trans_expected = tf.convert_to_tensor(trans_expected)
 
     T_expected = qt_ops.transform_from_quat_and_trans(quat_expected, trans_expected)
-    #print(K.int_shape(T_expected))
     depth_maps_expected, cloud_exp = tf.map_fn(lambda x: at3._simple_transformer(radar_input[x, :, :, 0], T_expected[x], k_mat[x]), elems=tf.range(0, batch_size, 1), dtype=(tf.float32, tf.float32))
+    #cloud_exp = tf.Print(cloud_exp, [cloud_exp], message="cloud_expected:", summarize=30000)
 
     # photometric loss between predicted and expected transformation
     # Note that here they have to re-normalize the depth maps since they de-normalized them before the ST layers!!!
@@ -51,8 +49,13 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     # earth mover's distance between point clouds
     #cloud_loss = model_utils.get_emd_loss(cloud_pred, cloud_exp)
 
+    cloud_loss = tf.reduce_sum((cloud_pred - cloud_exp) ** 2, axis=-1)
+
+    cloud_loss = tf.reduce_mean(cloud_loss)
+
     # final loss term
-    predicted_loss_train = alpha * photometric_loss #+ beta * cloud_loss
+    #predicted_loss_train = alpha * photometric_loss #+ beta * cloud_loss
+    predicted_loss_train = cloud_loss
 
     return predicted_loss_train
 

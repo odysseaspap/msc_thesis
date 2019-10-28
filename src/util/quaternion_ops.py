@@ -48,7 +48,7 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     """
     Method that creates an augmented transform which includes the batch size
     in the output shape
-    :param quaternion: ( batch_size, 4, 1 ) quaternion vectors
+    :param quaternion: (batch_size, 4) quaternion vectors
     :param trans_vector: (batch_size, 3, 1) translation vectors
     :return: transform_augm (batch_size, 4, 4) augmented transform matrix
     """
@@ -60,3 +60,11 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
 
     return transform_augm
+
+if __name__ == '__main__': # For debugging.
+    quat = tf.constant([[1.0, 2.0, 3.0, 1.0], [0.0, 0.0, 0.0, 1.0]])
+    trans_vector = tf.constant([[[1.0], [2.0], [3.0]], [[1.0], [2.0], [3.0]]])
+    transform_augm = transform_from_quat_and_trans(quat, trans_vector)
+    with tf.Session() as sess:
+        out = sess.run(transform_augm)
+        print(out)

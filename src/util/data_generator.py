@@ -67,7 +67,7 @@ class DataGenerator(keras.utils.Sequence):
         # Initialization
         batch_rgb_input = np.empty((self.batch_size, *self.dim, self.image_channels))
         batch_radar_input = np.empty((self.batch_size, *self.dim, self.radar_channels))
-        batch_k_mat = np.empty((self.batch_size, 3, 3))
+        batch_k_mat = np.empty((self.batch_size, 3, 4))
         batch_trans_label = np.empty((self.batch_size, 3))
         batch_labels = np.empty((self.batch_size, 7))
 

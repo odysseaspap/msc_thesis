@@ -40,7 +40,7 @@ class RadarBatchReprojectionManager:
     def _valid_pixel_coordinates(self, u, v):
         return (u >= 0 and v >= 0 and v < self._proj_height and u < self._proj_width)
 
-    def _compute_pixel_coordinates_and_invdepth(self, H, K, point):
+    def _compute_pixel_coordinates_and_depth(self, H, K, point):
         # Project point.
         tmp = np.matmul(H, point.transpose())
         plane_point = np.matmul(K, tmp)
@@ -48,12 +48,12 @@ class RadarBatchReprojectionManager:
         # Compute image coordinates.
         u = plane_point[0]/plane_point[2]
         v = plane_point[1]/plane_point[2]
-        inv_depth = 1./plane_point[2]
+        depth = 1./plane_point[2]
 
         # Scale coordinates.
         v /= (self._orig_height / self._proj_height)
         u /= (self._orig_width / self._proj_width)
-        return u, v, inv_depth
+        return u, v, depth
 
     def _project_radar_detections(self, h_inits, Ks, radar_detections):
         projections = []
@@ -61,10 +61,10 @@ class RadarBatchReprojectionManager:
 
             projection_image = np.zeros([self._proj_height, self._proj_width])
             for detection in detections:
-                u, v, inv_depth = self._compute_pixel_coordinates_and_invdepth(H_init, K, detection)
+                u, v, depth = self._compute_pixel_coordinates_and_depth(H_init, K, detection)
                 u, v = int(u), int(v)
                 if self._valid_pixel_coordinates(u, v):
-                    projection_image[v][u] = inv_depth
+                    projection_image[v][u] = depth
 
             projection_image = np.expand_dims(projection_image, axis=-1)
             projections.append(projection_image)
