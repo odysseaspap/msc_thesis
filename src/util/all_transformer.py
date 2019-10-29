@@ -133,8 +133,8 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     x = tf.transpose(points_2d[0,:]/Z)
     y = tf.transpose(points_2d[1,:]/Z)
 
-    #x = tf.cast(x, 'int32')
-    #y = tf.cast(y, 'int32')
+    tf.round(x)
+    tf.round(y)
 
     mask_int = tf.cast(mask, 'int32')
 

@@ -48,7 +48,7 @@ class RadarBatchReprojectionManager:
         # Compute image coordinates.
         u = plane_point[0]/plane_point[2]
         v = plane_point[1]/plane_point[2]
-        depth = 1./plane_point[2]
+        depth = plane_point[2]
 
         # Scale coordinates.
         v /= (self._orig_height / self._proj_height)
