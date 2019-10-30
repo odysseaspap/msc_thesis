@@ -200,7 +200,7 @@ def invert_homogeneous_matrix(mat):
     mat_inverse[:3,3] = mat[:3,3] * -1.
     return mat_inverse
 
-def comp_uv_invdepth(K, h_gt, decalib, point):
+def comp_uv_depth(K, h_gt, decalib, point):
     '''
     Compute pixels coordinates and inverted radar depth.
     '''
@@ -269,22 +269,22 @@ def create_and_store_samples(image_radar_pairs: List,
             # Project radar detections in matrices.
             for radar_detection in radar_pcl.points:
                 radar_detections.append(radar_detection)
-                u, v, inv_depth = comp_uv_invdepth(K, h_gt, decalib, radar_detection)
-                u_true, v_true, inv_depth_true = comp_uv_invdepth(K, h_gt, np.identity(4), radar_detection )
+                u, v, depth = comp_uv_depth(K, h_gt, decalib, radar_detection)
+                u_true, v_true, depth_true = comp_uv_depth(K, h_gt, np.identity(4), radar_detection )
 
                 # Convert to pixel coordinates, write in the matrix and draw dots on debug image.
-                if (u, v, inv_depth, u_true, v_true, inv_depth_true) != None:
+                if (u, v, depth, u_true, v_true, depth_true) != None:
                     v /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
                     u /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
                     v_true /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
                     u_true /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
                     u, v, v_true, u_true = int(u), int(v), int(v_true), int(u_true)
                     if valid_pixel_coordinates(u, v, IMAGE_HEIGHT, IMAGE_WIDTH):
-                        projection_decalibrated[v][u] = inv_depth
+                        projection_decalibrated[v][u] = depth
                         cv2.circle(img_copy_debug,(u,v), debug_circle_size, (255,0,0), -1) # Red
                         counter_points += 1
                     if valid_pixel_coordinates(u_true, v_true, IMAGE_HEIGHT, IMAGE_WIDTH):
-                        projection_groundtruth[v_true][u_true] = inv_depth_true
+                        projection_groundtruth[v_true][u_true] = depth_true
                         cv2.circle(img_copy_debug,(u_true,v_true), debug_circle_size, (0,0,255), -1) # Blue
 
         # Store data only if there are more projections_groundtruth than the required amount
@@ -371,7 +371,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_stored_depth', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/jupyter/thesis/data/sets/nuscenes_RADNET/nuscenes_08_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()
@@ -440,7 +440,7 @@ def main():
             raise
 
     #Instantiate an object of the NuScenes dataset class
-    nusc = NuScenes(version='v1.0-mini', dataroot='/home/odysseas/thesis/data/sets/nuscenes_mini/', verbose=True)
+    nusc = NuScenes(version='v1.0-trainval', dataroot='/home/jupyter/thesis/data/sets/nuscenes/', verbose=True)
 
     #Load front_cam and front_rad sample_data info in respective lists
     cam_sd_tokens, rad_sd_tokens, sample_names = load_keyframe_rad_cam_data(nusc)

@@ -35,14 +35,14 @@ def pad_and_sparsify_cloud(S):
         # since they are created in a map_fn and will be concatenated in a single Tensor!
         # TODO: pad with zeros before so that no_points = 125 and here set point_limit to 125
         # ma
-        point_limit = 15
+        point_limit = 9
         #paddings = tf.constant([[0, 0], [0, max_points - cloud_exp.get_shape()[1].value]])
 
         #cloud_pred_padded = tf.pad(cloud_pred, paddings_pred, constant_values=0)
 
         no_points = tf.shape(S)[0]
         #point_limit = no_points
-        # no_points = tf.Print(no_points, [no_points], message="No points: ", summarize=360)
+        #no_points = tf.Print(no_points, [no_points], message="No points: ", summarize=360)
         no_partitions = no_points/ tf.constant(point_limit, dtype=tf.int32)
         no_partitions = tf.cast(no_partitions, 'int32')
         saved_points = tf.gather_nd(S, [tf.expand_dims(tf.range(0, no_partitions*point_limit), 1)])

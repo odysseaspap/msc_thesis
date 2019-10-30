@@ -17,7 +17,7 @@ def create_homogeneous_transformation(rotation_matrix, translation_vector):
 
 def create_random_rotation_matrix(angle_std_dev):
     # Create random roll rotation (rotation around z-axis)
-    roll_angle = np.random.uniform(low=-angle_std_dev*0.5, high=angle_std_dev*0.5)
+    roll_angle = np.random.uniform(low=-angle_std_dev, high=angle_std_dev)
     # print("Roll angle: {}".format(roll_angle))
     roll_angle = np.radians(roll_angle)
     # roll_angle = np.radians(angle_std_dev * np.random.randn()) * 0.5 # Assume smaller roll error.
