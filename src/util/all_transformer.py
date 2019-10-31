@@ -20,6 +20,25 @@ def _simple_transformer(depth_map, t_mat, k_mat):
     return _bilinear_sampling(transformed_depth_map, x_all, y_all), sparse_cloud
 
 
+def sparsify_cloud(S):
+
+    """
+    Cluster centers of point clouds used to sparsify cloud for Earth Mover's Distance.
+    All radar pcd files have WIDTH 125 (max 125 radar points in each file) but on average there are
+    60 detections per file
+    """
+
+    with tf.device('/cpu:0'):
+        point_limit = 15
+        no_points = tf.shape(S)[0]
+        no_partitions = no_points/ tf.constant(point_limit, dtype=tf.int32)
+        no_partitions = tf.cast(no_partitions, 'int32')
+        saved_points = tf.gather_nd(S, [tf.expand_dims(tf.range(0, no_partitions*point_limit), 1)])
+        saved_points = tf.reshape(saved_points, [point_limit, no_partitions, 3])
+        saved_points_sparse = tf.reduce_mean(saved_points, 1)
+
+        return saved_points_sparse
+
 def pad_and_sparsify_cloud(S):
 
     """
@@ -29,23 +48,23 @@ def pad_and_sparsify_cloud(S):
     """
 
     with tf.device('/cpu:0'):
+
         # This method causes 3D loss function to be nan when the point_limit
         # set here is larger than the no_points in a file
         # In addition, all point_clouds returned from this file must have the same no_points
         # since they are created in a map_fn and will be concatenated in a single Tensor!
-        # TODO: pad with zeros before so that no_points = 125 and here set point_limit to 125
-        # ma
-        point_limit = 9
-        #paddings = tf.constant([[0, 0], [0, max_points - cloud_exp.get_shape()[1].value]])
-
-        #cloud_pred_padded = tf.pad(cloud_pred, paddings_pred, constant_values=0)
-
+        # So, this method sets the point_limit to 125 and pads the pointcloud S with zero - points
+        # [0.0, 0.0, 0.0] so that no_points_padded = 125
+        point_limit = 125
         no_points = tf.shape(S)[0]
-        #point_limit = no_points
-        #no_points = tf.Print(no_points, [no_points], message="No points: ", summarize=360)
-        no_partitions = no_points/ tf.constant(point_limit, dtype=tf.int32)
+        print(no_points)
+        zero_points = tf.zeros((point_limit - no_points, 3), dtype='float32')
+        S_padded = tf.concat([S, zero_points], axis = 0)
+        no_points_padded = tf.shape(S_padded)[0]
+
+        no_partitions = no_points_padded/ tf.constant(point_limit, dtype=tf.int32)
         no_partitions = tf.cast(no_partitions, 'int32')
-        saved_points = tf.gather_nd(S, [tf.expand_dims(tf.range(0, no_partitions*point_limit), 1)])
+        saved_points = tf.gather_nd(S_padded, [tf.expand_dims(tf.range(0, no_partitions*point_limit), 1)])
         saved_points = tf.reshape(saved_points, [point_limit, no_partitions, 3])
         saved_points_sparse = tf.reduce_mean(saved_points, 1)
 
