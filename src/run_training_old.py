@@ -1,4 +1,4 @@
-# Software versions needed: Keras 2.1, Tensorflow 1.13, Cuda 10.0, Cudnn 6.0
+# Software versions needed: Keras 2.1, Tensorflow 1.4, Cuda 8.0, Cudnn 6.0
 
 # Fixed seeding for repeatability and finding good starting points.
 # from numpy.random import seed
@@ -56,7 +56,8 @@ os.environ['CUDA_VISIBLE_DEVICES'] = ''
 run_config = RunConfig()
 experiments_path = "../experiments/"
 model_1_name = "model_1"
-
+model_2_name = "model_2"
+model_3_name = "model_3"
 
 
 
@@ -73,17 +74,14 @@ def save_minimum_loss_and_metrics(history, output_folder):
 def compute_example_predictions(model, sample_file_names, num_prints):
     np.set_printoptions(suppress=True)
     for i in range(num_prints):
-        [input_1, input_2, input_3, input_4], label = dl.load_radnet_training_sample_with_intrinsics_gt_decalib(str(sample_file_names[i]))
+        [input_1, input_2], label = dl.load_radnet_training_sample(str(sample_file_names[i]))
         # Expand dimensions to account for expected batch dimension
         input_1 = np.expand_dims(input_1, axis=0)
         input_2 = np.expand_dims(input_2, axis=0)
-        input_3 = np.expand_dims(input_3, axis=0)
-        input_4 = np.expand_dims(input_4, axis=0)
         print("Label: " + str(label))
-        output = model.predict([input_1, input_2, input_3, input_4])
+        output = model.predict([input_1, input_2])
         # Normalize quaternions.
-        quats = output[0]
-        #quats = output[:,:4]
+        quats = output[:,:4]
         inv_mags = 1. / np.sqrt(np.sum(np.square(quats), axis=1))
         quats_normalized = np.transpose(np.transpose(quats) * inv_mags)
         # print("Output unnormalized: " + str(quats[0]))
@@ -105,10 +103,10 @@ def get_metrics():
     # metrics.append(rot_loss)
     # metrics.append(trans_loss)
     # Metrics.
-    metrics.append(met.rot_angle_error)
-    metrics.append(met.tilt_error)
-    metrics.append(met.pan_error)
-    metrics.append(met.roll_error)
+    #metrics.append(met.rot_angle_error)
+    #metrics.append(met.tilt_error)
+    #metrics.append(met.pan_error)
+    #metrics.append(met.roll_error)
     # metrics.append(trans_error)
     # metrics.append(trans_error_x)
     # metrics.append(trans_error_y)
@@ -125,11 +123,23 @@ def create_model():
 def train_model(samples_list_train, samples_list_val, model_name):
     model = create_model()
     # Create generators.
-    params_train = {'batch_size': run_config.batch_size,
+    if model_name == model_2_name:
+        params_train = {'batch_size': run_config.batch_size,
+            'dim': (150, 240),
+            'shuffle': True,
+            'radar_input_factor': run_config.radar_input_factor,
+            'path_augmented_data': str(experiments_path + model_1_name + "/aug_samples_train/")}
+        params_val = {'batch_size': run_config.batch_size,
+            'dim': (150, 240),
+            'shuffle': True,
+            'radar_input_factor': run_config.radar_input_factor,
+            'path_augmented_data': str(experiments_path + model_1_name + "/aug_samples_val/")}
+    else:
+        params_train = {'batch_size': run_config.batch_size,
             'dim': (150, 240),
             'radar_input_factor': run_config.radar_input_factor,
             'shuffle': True}
-    params_val = params_train
+        params_val = params_train
 
     training_generator = DataGenerator(samples_list_train, **params_train)
     validation_generator = DataGenerator(samples_list_val, **params_val)
@@ -137,21 +147,8 @@ def train_model(samples_list_train, samples_list_val, model_name):
     # Train model.
     optimizer = optimizers.Adam(lr=run_config.lr)
     #model.compile(loss=keras.losses.mean_squared_error, optimizer=optimizer, metrics=get_metrics())
-    # Use a specific loss and metric for each specific output,
-    # based on the name of the output Layer
-    losses_dic = {
-        'quat_predicted': loss_fn.keras_weighted_quaternion_translation_loss(run_config.length_error_weight),
-        'depth_maps_predicted': loss_fn.keras_photometric_and_3d_pointcloud_loss(model.input[1], model.input[2],
-            model.output[1], model.output[2], run_config.photometric_loss_factor, run_config.point_cloud_loss_factor)
-    }
-    loss_weights_dict = {
-        'quat_predicted': 0.0,
-        'depth_maps_predicted': 1.0
-    }
-    metrics_dict = {
-        'quat_predicted': get_metrics()
-    }
-    model.compile(loss=losses_dic, loss_weights=loss_weights_dict, optimizer=optimizer, metrics=metrics_dict)
+    model.compile(loss=loss_fn.keras_photometric_and_3d_pointcloud_loss(run_config.photometric_loss_factor, run_config.point_cloud_loss_factor),
+                  optimizer=optimizer)#, metrics=get_metrics())
     callback_list = create_callbacks(model_name)
     history = model.fit_generator(generator=training_generator, validation_data=validation_generator,
                                   epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6)
@@ -165,9 +162,10 @@ def train_model(samples_list_train, samples_list_val, model_name):
     return model
 
 
-def visualize_corrected_projections(rgb_images, proj_gt, proj_init, proj_model_1): #, proj_model_2):
+def visualize_corrected_projections(rgb_images, proj_gt, proj_init, proj_model_1, proj_model_2):
     plotting.visualize_corrected_projection(rgb_images, proj_gt, proj_init, os.path.join(experiments_path, 'projections_init'))
     plotting.visualize_corrected_projection(rgb_images, proj_gt, proj_model_1, os.path.join(experiments_path, 'projections_model_1'))
+    plotting.visualize_corrected_projection(rgb_images, proj_gt, proj_model_2, os.path.join(experiments_path, 'projections_model_2'))
 
 def start_training(samples_list):
     global run_config
@@ -198,13 +196,7 @@ def start_training(samples_list):
     print("Reprojecting and storing training data")
     reprojection_manager.compute_and_save_corrected_projections_labels(samples_list_train, model_1, output_path_train)
     print("Reprojecting and storing validation data")
-    #print(K.int_shape(decalibs))
-    #print(K.int_shape(Ks))
-    trans_labels = decalibs[:, 4:]
-    #k_mats = Ks[:, :, :3]
-    #print(K.int_shape(trans_labels))
-    #print(K.int_shape(k_mats))
-    projections_val_1, labels_val_1 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_decalibrated_val, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
+    projections_val_1, labels_val_1 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_decalibrated_val], decalibs, radar_detections, H_gts, Ks, model_1)
     # save augmented validation samples
     if not os.path.exists(output_path_val):
         os.makedirs(output_path_val)
@@ -215,18 +207,18 @@ def start_training(samples_list):
     print("Reprojection time: " + str(time() - start_time))
 
     # Reset noise parameter.
-    #run_config = RunConfig()
+    run_config = RunConfig()
 
     # Train model 2.
-    #print("Starting training of {}".format(model_2_name))
-    #model_2 = train_model(samples_list_train, samples_list_val, model_2_name)
+    print("Starting training of {}".format(model_2_name))
+    model_2 = train_model(samples_list_train, samples_list_val, model_2_name)
 
     # Augment data with model_2
-    #print("Reprojecting corrections of {}...".format(model_2_name))
-    #start_time = time()
-    #print("Reprojecting validation data")
-    #projections_val_2, labels_val_2 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_val_1], labels_val_1, radar_detections, H_gts, Ks, model_2)
-    #print("Reprojection time: " + str(time() - start_time))
+    print("Reprojecting corrections of {}...".format(model_2_name))
+    start_time = time()
+    print("Reprojecting validation data")
+    projections_val_2, labels_val_2 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_val_1], labels_val_1, radar_detections, H_gts, Ks, model_2)
+    print("Reprojection time: " + str(time() - start_time))
 
     # Delete unused variables / data
     del radar_detections
@@ -245,14 +237,14 @@ def start_training(samples_list):
     #Creating all the images is time-consuming so in case the val samples are many,
     #create visualization results for the first 100 only
     if (len(images_val)>100):
-        visualize_corrected_projections(images_val[:100], projections_groundtruth_val[:100], projections_decalibrated_val[:100], projections_val_1[:100]) #, projections_val_2[:100])
+        visualize_corrected_projections(images_val[:100], projections_groundtruth_val[:100], projections_decalibrated_val[:100], projections_val_1[:100], projections_val_2[:100])
     else:
-        visualize_corrected_projections(images_val, projections_groundtruth_val, projections_decalibrated_val, projections_val_1) #, projections_val_2)
+        visualize_corrected_projections(images_val, projections_groundtruth_val, projections_decalibrated_val, projections_val_1, projections_val_2)
     print("Time to visualize corrected projections: " + str(time() - start_time))
     # Create paper plots
     start_time = time()
     print("Create paper plots...")
-    pv.create_paper_plots(experiments_path, projections_decalibrated_val, labels_val_1, decalibs)
+    pv.create_paper_plots(experiments_path, projections_decalibrated_val, labels_val_2, decalibs)
     print("Time to make paper plots: " + str(time() - start_time))
 
 
@@ -309,36 +301,35 @@ def save_run_params_in_file():
 
 def load_models(models_path):
     model_1 = load_model(os.path.join(models_path, model_1_name + '.h5'), compile=False)
-    #model_2 = load_model(os.path.join(models_path, model_2_name + '.h5'), compile=False)
+    model_2 = load_model(os.path.join(models_path, model_2_name + '.h5'), compile=False)
     # model_1 = RadNet(run_config.input_shape)
     # model_2 = RadNet(run_config.input_shape)
     # model_1.model.load_weights(os.path.join(models_path, model_1_name + '.h5'))
     # model_2.model.load_weights(os.path.join(models_path, model_2_name + '.h5'))
     # return model_1.model, model_2.model
-    return model_1 #, model_2
+    return model_1, model_2
 
 def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     # Initialize models.
     start_time = time()
     print("Loading model weights...")
-    model_1 = load_models(models_path)
+    model_1, model_2 = load_models(models_path)
     # Load data.
     print("Loading data...")
     images, projections_decalib, projections_groundtruth, decalibs, H_gts, Ks, radar_detections, dims = dl.load_dataset(samples_list)
     # Instantiate reprojection manager.
     reprojection_manager = RadarReprojectionManager(run_config.original_resolution, run_config.input_shape, np.identity(4), np.identity(4))
     reprojection_manager_batch = RadarBatchReprojectionManager(run_config.original_resolution, run_config.input_shape)
-    trans_labels = decalibs[:, 4:]
-    #k_mats = Ks[:, :, :3]
-    # Apply model.
-    print("Applying model...")
+
+    # Apply models.
+    print("Applying models...")
     if static_decalib == True:
         print("Static decalibration assumed. Samples get corrected with last estimate before model prediction.")
-        projections_1, labels_1 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_decalib, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, dims, model_1)
-       # projections_2, labels_2 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_1], labels_1, radar_detections, H_gts, Ks, dims, model_2)
+        projections_1, labels_1 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_decalib], decalibs, radar_detections, H_gts, Ks, dims, model_1)
+        projections_2, labels_2 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_1], labels_1, radar_detections, H_gts, Ks, dims, model_2)
     else:
-        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections_decalib, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
-        #projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1], labels_1, radar_detections, H_gts, Ks, model_2)
+        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections_decalib], decalibs, radar_detections, H_gts, Ks, model_1)
+        projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1], labels_1, radar_detections, H_gts, Ks, model_2)
 
     print("Reprojection time: " + str(time() - start_time))
     # Print errors.
@@ -348,18 +339,18 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     pv.print_angular_errors(decalibs)
     print("Model 1:")
     pv.print_angular_errors(labels_1)
-    #print("Model 2:")
-    #pv.print_angular_errors(labels_2)
+    print("Model 2:")
+    pv.print_angular_errors(labels_2)
     print("Generating corrected projections...")
-    pv.create_paper_plots(experiments_path, projections_decalib, labels_1, decalibs)
-    visualize_corrected_projections(images, projections_groundtruth, projections_decalib, projections_1) # projections_2)
+    pv.create_paper_plots(experiments_path, projections_decalib, labels_2, decalibs)
+    visualize_corrected_projections(images, projections_groundtruth, projections_decalib, projections_1, projections_2)
     print("Plotting time: " + str(time() - start_time))
 
 def cross_evaluate_models_static_decalib(models_path, samples_list):
     # Initialize models.
     start_time = time()
     print("Loading model weights...")
-    model_1 = load_models(models_path)
+    model_1, model_2 = load_models(models_path)
     # Load data.
     print("Loading data...")
     images_init, projections_decalib, projections_groundtruth, decalibs, H_gts_init, Ks_init, radar_detections_init, dims = dl.load_dataset(samples_list)
@@ -428,12 +419,10 @@ def cross_evaluate_models_static_decalib(models_path, samples_list):
         H_gts = np.array(H_gts_list)
         Ks = np.array(Ks_list)
 
-        # Apply model.
-        print("Applying model...")
-        trans_labels = decalibs[:, 4:]
-        #k_mats = Ks[:, :, :3]
-        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections, Ks, trans_labels], labels, radar_detections, H_gts, Ks, model_1)
-        #projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1], labels_1, radar_detections, H_gts, Ks, model_2)
+        # Apply models.
+        print("Applying models...")
+        projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections], labels, radar_detections, H_gts, Ks, model_1)
+        projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1], labels_1, radar_detections, H_gts, Ks, model_2)
         print("Reprojection time: " + str(time() - start_time))
 
         # add mean errors.
@@ -446,22 +435,22 @@ def cross_evaluate_models_static_decalib(models_path, samples_list):
         mean_errors_init_pan_abs.append(np.mean(np.absolute(pv.quat_pan_angles(labels))))
         mean_errors_init_roll_abs.append(np.mean(np.absolute(pv.quat_roll_angles(labels))))
 
-       # mean_errors_tilt.append(np.mean(pv.quat_tilt_angles(labels_2)))
-       # mean_errors_pan.append(np.mean(pv.quat_pan_angles(labels_2)))
-       # mean_errors_roll.append(np.mean(pv.quat_roll_angles(labels_2)))
+        mean_errors_tilt.append(np.mean(pv.quat_tilt_angles(labels_2)))
+        mean_errors_pan.append(np.mean(pv.quat_pan_angles(labels_2)))
+        mean_errors_roll.append(np.mean(pv.quat_roll_angles(labels_2)))
 
-        #mean_errors_total_abs.append(np.mean(np.absolute(pv.comp_abs_quat_angles(labels_2))))
-        #mean_errors_tilt_abs.append(np.mean(np.absolute(pv.quat_tilt_angles(labels_2))))
-        #mean_errors_pan_abs.append(np.mean(np.absolute(pv.quat_pan_angles(labels_2))))
-        #mean_errors_roll_abs.append(np.mean(np.absolute(pv.quat_roll_angles(labels_2))))
+        mean_errors_total_abs.append(np.mean(np.absolute(pv.comp_abs_quat_angles(labels_2))))
+        mean_errors_tilt_abs.append(np.mean(np.absolute(pv.quat_tilt_angles(labels_2))))
+        mean_errors_pan_abs.append(np.mean(np.absolute(pv.quat_pan_angles(labels_2))))
+        mean_errors_roll_abs.append(np.mean(np.absolute(pv.quat_roll_angles(labels_2))))
 
         print("Evaluation:")
         print("Initial:")
         pv.print_angular_errors(labels)
-        #print("Model 2:")
-        #pv.print_angular_errors(labels_2)
+        print("Model 2:")
+        pv.print_angular_errors(labels_2)
         # print("Generating corrected projections...")
-        pv.create_paper_plots(str(experiments_path + "{}/".format(cnt_runs)), projections, labels_1, labels)
+        pv.create_paper_plots(str(experiments_path + "{}/".format(cnt_runs)), projections, labels_2, labels)
         # visualize_corrected_projections(images, projections_groundtruth, projections, projections_1, projections_2)
         # print("Plotting time: " + str(time() - start_time))
         cnt_runs = cnt_runs + 1
@@ -540,7 +529,7 @@ def main():
     if not os.path.exists(experiments_path): # Create experiments directory.
         os.makedirs(experiments_path)
         os.makedirs(experiments_path + model_1_name)
-        #os.makedirs(experiments_path + model_2_name)
+        os.makedirs(experiments_path + model_2_name)
 
     # Save current git commit hash and info string if provided.
     with open(experiments_path+ 'info.txt', 'w') as info_file:
