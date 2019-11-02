@@ -1,9 +1,10 @@
 import numpy as np
 import keras
 from sklearn.utils import shuffle
-#from scipy import sparse
+# from scipy import sparse
 import util.data_wrangling as dw
 import util.dataloading as dl
+
 
 class DataGenerator(keras.utils.Sequence):
     """
@@ -25,7 +26,7 @@ class DataGenerator(keras.utils.Sequence):
         Path to the folder with augmented projections and labels. if None, no augmented projections are used.
     """
 
-    def __init__(self, sample_files_list, batch_size=32, dim=(150,240), radar_input_factor=1, shuffle=True, path_augmented_data=None):
+    def __init__(self, sample_files_list, batch_size=32, dim=(150, 240), radar_input_factor=1, shuffle=True,path_augmented_data=None):
         print("Initializing DataGenerator...")
         self.sample_files_list = sample_files_list
         self.batch_size = batch_size
@@ -40,14 +41,14 @@ class DataGenerator(keras.utils.Sequence):
         if (path_augmented_data != None):
             self.use_augmented_data = True
             print("DataGenerator will use augmented projections from folder {}.".format(str(self.path_augmented_data)))
-        
+
         print("DataGenerator initialized.")
 
     def __len__(self):
         """
         Computes the number of batches per epoch.
         """
-        return int(np.floor(len(self.sample_files_list) / self.batch_size)) # model sees training samples at most once per epoch
+        return int(np.floor(len(self.sample_files_list) / self.batch_size))  # model sees training samples at most once per epoch
 
     def __getitem__(self, index):
         X, y = self._prepare_batch(index)
@@ -60,7 +61,7 @@ class DataGenerator(keras.utils.Sequence):
     def _prepare_batch(self, batch_idx):
         # Compute batch boundaries.
         batch_start = batch_idx * self.batch_size
-        batch_end  = batch_start + self.batch_size
+        batch_end = batch_start + self.batch_size
         batch_indices = self._shuffled_indices[batch_start:batch_end]
         # Get IDs of batch samples
         list_IDs_batch = [self.sample_files_list[k] for k in batch_indices]
@@ -70,23 +71,28 @@ class DataGenerator(keras.utils.Sequence):
         batch_k_mat = np.empty((self.batch_size, 3, 4))
         batch_trans_label = np.empty((self.batch_size, 3))
         batch_labels = np.empty((self.batch_size, 7))
+        batch_augmented_quat_labels = np.empty((self.batch_size, 4))
 
         # Load and augment data samples
         for i, ID in enumerate(list_IDs_batch):
             [batch_rgb_input[i,], batch_radar_input[i,], batch_k_mat[i,], batch_trans_label[i,]], batch_labels[i,] = dl.load_radnet_training_sample_with_intrinsics_gt_decalib(str(ID))
             # exchange radar input and label in case augmented data has to be used
             if self.use_augmented_data == True:
-                projection_aug, label_aug = dl.load_augmented_projection_sample(self.path_augmented_data + str(ID).split("/")[-1])
+                projection_aug, label_aug = dl.load_augmented_projection_sample(
+                    self.path_augmented_data + str(ID).split("/")[-1])
                 batch_radar_input[i,] = projection_aug
-                batch_labels[i,] = label_aug
+                batch_augmented_quat_labels[i,] = label_aug
+                # since the trans vectors are not actively used for now, we can simply concat the augmented
+                # quat labels with the original zero trans labels
+                batch_labels[i,] = np.hstack((batch_augmented_quat_labels[i,], batch_trans_label[i,]))
             # [batch_rgb_input[i,], batch_radar_input[i,]], batch_labels[i,] = self._augment_data(sample["rgb_image"], sample["radar_detections"], sample["K"], sample["H_gt"], sample["rgb_image_orig_dim"][0], sample["rgb_image_orig_dim"][1])
             # increase stored depth values in radar input for better training performance
             batch_radar_input[i,] = batch_radar_input[i,] * self.radar_input_factor
         dw.standardize_images(batch_rgb_input)
-        assert(len(batch_rgb_input) == len(batch_labels))
-        assert(len(batch_radar_input) == len(batch_labels))
-        assert(len(batch_k_mat) == len(batch_labels))
-        assert(len(batch_trans_label) == len(batch_labels))
+        assert (len(batch_rgb_input) == len(batch_labels))
+        assert (len(batch_radar_input) == len(batch_labels))
+        assert (len(batch_k_mat) == len(batch_labels))
+        assert (len(batch_trans_label) == len(batch_labels))
 
         # We have to provide one label array for each output array of RadNet
         # Unless an output is ommited from the loss functions dict, then we must provide
@@ -99,14 +105,14 @@ class DataGenerator(keras.utils.Sequence):
     #     Returns augmented data sample: create decalibration and transform radar detections
 
     #     A augmented data sample is only accepted if the minimum number of projections is reached. Otherwise
-    #     it will retry with a different decalibration up to 10 times. Afterwards, no decalibration is used to 
+    #     it will retry with a different decalibration up to 10 times. Afterwards, no decalibration is used to
     #     create a valid sample.
 
     #     Parameters
     #     ----------
     #     rgb_image : ndarray
     #         rgb image of data sample
-    #     radar_detections : ndarray 
+    #     radar_detections : ndarray
     #         with shape (4,1,number_of_detections) containing position vectors of all detections in radar coordinate frame
     #     K : ndarray
     #         intrinsic calibration matrix of camera with shape (3,4)
@@ -127,7 +133,7 @@ class DataGenerator(keras.utils.Sequence):
     #     rgb_input = rgb_image
     #     image_height = rgb_image.shape[0]
     #     image_width = rgb_image.shape[1]
-        
+
     #     counter_points = 0 # count number of projected vehicles
     #     retry = 0 # counter of retry if too less projections available
     #     while(counter_points < self.min_number_projections):
@@ -135,7 +141,7 @@ class DataGenerator(keras.utils.Sequence):
     #             decalibration_matrix = create_decalib_transformation(self.angle_std_deviation, self.translation_std_deviation)
     #         else:
     #             decalibration_matrix = np.identity(4)
-                
+
     #         radar_input = np.zeros(image_height, image_width)
     #         counter_points = 0
     #         for index in range(radar_detections.shape[2]):
@@ -152,7 +158,6 @@ class DataGenerator(keras.utils.Sequence):
 
     #     inv_decalibration_matrix = invert_homogeneous_matrix(decalibration_matrix)
     #     return [rgb_input, radar_input], inv_decalibration_matrix
-
 
     # def _comp_uv_invdepth(self, K, h_gt, decalib, point):
     #     '''
