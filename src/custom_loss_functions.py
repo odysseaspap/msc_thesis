@@ -44,8 +44,8 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     # photometric loss between predicted and expected transformation
     # Note that here they have to re-normalize the depth maps since they de-normalized them before the ST layers!!!
     # plus, they measure the photometric loss only in a 10x10 area in the center of the image!!!
-    photometric_loss = tf.nn.l2_loss(tf.subtract(depth_maps_expected[:, 10:-10, 10:-10], depth_maps_predicted[:, 10:-10, 10:-10]))
-
+    photometric_loss = tf.nn.l2_loss(tf.subtract(depth_maps_expected[:, 50:-10, 10:-10], depth_maps_predicted[:, 50:-10, 10:-10]))
+    
     # earth mover's distance between point clouds
     #cloud_loss = model_utils.get_emd_loss(cloud_pred, cloud_exp)
 
@@ -54,7 +54,7 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     cloud_loss = tf.reduce_mean(cloud_loss)
 
     # final loss term
-    #predicted_loss_train = alpha * photometric_loss #+ beta * cloud_loss
+    #predicted_loss_train = alpha * photometric_loss + beta * cloud_loss
     predicted_loss_train = cloud_loss
 
     return predicted_loss_train

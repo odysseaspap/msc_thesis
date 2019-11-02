@@ -154,7 +154,7 @@ def train_model(samples_list_train, samples_list_val, model_name):
     model.compile(loss=losses_dic, loss_weights=loss_weights_dict, optimizer=optimizer, metrics=metrics_dict)
     callback_list = create_callbacks(model_name)
     history = model.fit_generator(generator=training_generator, validation_data=validation_generator,
-                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6)
+                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6, verbose=1)
     # Generate training visualizations.
     model_output_folder = experiments_path + model_name + '/'
     model.save(experiments_path + model_name + '.h5')

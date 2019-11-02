@@ -57,7 +57,6 @@ def pad_and_sparsify_cloud(S):
         # [0.0, 0.0, 0.0] so that no_points_padded = 125
         point_limit = 125
         no_points = tf.shape(S)[0]
-        print(no_points)
         zero_points = tf.zeros((point_limit - no_points, 3), dtype='float32')
         S_padded = tf.concat([S, zero_points], axis = 0)
         no_points_padded = tf.shape(S_padded)[0]
