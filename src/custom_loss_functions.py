@@ -49,8 +49,8 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     # earth mover's distance between point clouds
     #cloud_loss = model_utils.get_emd_loss(cloud_pred, cloud_exp)
 
+    # Average of squared distance between point clouds
     cloud_loss = tf.reduce_sum((cloud_pred - cloud_exp) ** 2, axis=-1)
-
     cloud_loss = tf.reduce_mean(cloud_loss)
 
     # final loss term

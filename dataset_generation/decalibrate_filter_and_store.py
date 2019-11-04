@@ -43,11 +43,11 @@ from typing import Tuple, List, Dict
 from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import RadarPointCloud
 from nuscenes.utils.geometry_utils import view_points, transform_matrix
-
+from nuscenes.utils.radar_utils import filter_pointcloud
 
 #Config parameters
 ROTATION_STD = 10. # Degrees
-TRANSLATION_STD = 0.1 # Cm
+TRANSLATION_STD = 0.0 # Cm
 static_decalib = False
 
 IMAGE_WIDTH = 240
@@ -125,7 +125,7 @@ def load_keyframe_rad_cam_data(nusc: NuScenes) -> (List[str], List[str], List[st
 def tokens_to_data_pairs(nusc: NuScenes,
                          cam_sd_tokens: List[str],
                          rad_sd_tokens: List[str],
-                         depth: float) -> list(zip()):
+                         depth: float, threshold: float) -> list(zip()):
     """
     This method takes a pair of lists with the Camera and Radar sample_data tokens,
     filters the RadarPointCloud for detections closer than the parameter depth,
@@ -134,6 +134,7 @@ def tokens_to_data_pairs(nusc: NuScenes,
     :param cam_sd_tokens: List with all the camera sample_data tokens
     :param rad_sd_tokens: List with all the radar sample_data tokens
     :param depth: Distance from the radar sensor (x value) above which all detections are omitted
+    :param threshold: No pairs of points in the resulted dataset will have distance less than this threshold
     :return: list(zip(np.array, np.array)) List of zipped array lists with the data
     """
     rgb_images_list = []
@@ -157,12 +158,15 @@ def tokens_to_data_pairs(nusc: NuScenes,
         #radar_pcl = RadarPointCloud.from_file(rad_sd_path, invalid_states = range(18), dynprop_states = range(18), ambig_states = range(18))
         #radar_pcl = RadarPointCloud.from_file(rad_sd_path, invalid_states = None, dynprop_states = [0,2,6], ambig_states = None)
         radar_pcl = RadarPointCloud.from_file(rad_sd_path)
-        #nuScenes RadarPointCloud has shape (18, num_points)
-        #RADNET expects (num_points, 4)
+        # radar_pcl.points.shape is (18, num_points)
+        radar_pcl.points, dist_list = filter_pointcloud(radar_pcl.points, threshold)
+        # radar_pcl.points.shape became (3, num_points)
+        #RADNET expects shape (num_points, 4)
         radar_pcl.points = radar_pcl.points.transpose()
-        radar_pcl.points = radar_pcl.points[:, :3]
-        radar_pcl.points = radar_pcl.points[radar_pcl.points[:, 0] < depth]
+        #radar_pcl.points = radar_pcl.points[:, :3]
+        #radar_pcl.points = radar_pcl.points[radar_pcl.points[:, 0] < depth]
         radar_pcl.points = np.hstack((radar_pcl.points, np.ones((radar_pcl.points.shape[0], 1), dtype=radar_pcl.points.dtype)))
+
         radar_pcl_list.append(radar_pcl)
 
     assert(len(rgb_images_list) == len(radar_pcl_list))
@@ -206,7 +210,7 @@ def invert_homogeneous_matrix(mat):
     mat_inverse[:3,3] = mat[:3,3] * -1.
     return mat_inverse
 
-def comp_uv_invdepth(K, h_gt, decalib, point):
+def comp_uv_depth(K, h_gt, decalib, point):
     '''
     Compute pixels coordinates and inverted radar depth.
     '''
@@ -216,7 +220,7 @@ def comp_uv_invdepth(K, h_gt, decalib, point):
     point = np.matmul(tmp, point.transpose())
     if point[2] != 0:
         # return np.array([int(point[0]/point[2]), int(point[1]/point[2]), 1./point[2]])
-        return [point[0]/point[2], point[1]/point[2], 1./point[2]]
+        return [point[0]/point[2], point[1]/point[2], point[2]]
     else:
         return None
 
@@ -274,22 +278,22 @@ def create_and_store_samples(image_radar_pairs: List,
             for radar_detection in radar_pcl.points:
                 radar_detections.append(radar_detection)
 
-                u, v, inv_depth = comp_uv_invdepth(K, h_gt, decalib, radar_detection)
-                u_true, v_true, inv_depth_true = comp_uv_invdepth(K, h_gt, np.identity(4), radar_detection )
+                u, v, depth = comp_uv_depth(K, h_gt, decalib, radar_detection)
+                u_true, v_true, depth_true = comp_uv_depth(K, h_gt, np.identity(4), radar_detection )
 
                 # Convert to pixel coordinates, write in the matrix and draw dots on debug image.
-                if (u, v, inv_depth, u_true, v_true, inv_depth_true) != None:
+                if (u, v, depth, u_true, v_true, depth_true) != None:
                     v /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
                     u /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
                     v_true /= (ORIGINAL_HEIGHT/IMAGE_HEIGHT)
                     u_true /= (ORIGINAL_WIDTH/IMAGE_WIDTH)
                     u, v, v_true, u_true = int(u), int(v), int(v_true), int(u_true)
                     if valid_pixel_coordinates(u, v, IMAGE_HEIGHT, IMAGE_WIDTH):
-                        projection_decalibrated[v][u] = inv_depth
+                        projection_decalibrated[v][u] = depth
                         cv2.circle(img_copy_debug,(u,v), debug_circle_size, (255,0,0), -1) # Red
                         counter_points += 1
                     if valid_pixel_coordinates(u_true, v_true, IMAGE_HEIGHT, IMAGE_WIDTH):
-                        projection_groundtruth[v_true][u_true] = inv_depth_true
+                        projection_groundtruth[v_true][u_true] = depth_true
                         cv2.circle(img_copy_debug,(u_true,v_true), debug_circle_size, (0,0,255), -1) # Blue
 
         # Store data only if there are more projections_groundtruth than the required amount
@@ -376,14 +380,16 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_depth_filtered', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_3Ddist12m_filtered', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
-    parser.add_argument('--depth', default = 300.0, type = float, help='Distance from radar sensor above which detections are ommitted from the dataset')
+    parser.add_argument('--depth', default = 300.0, type = float, help='Distance (meters) from radar sensor above which detections are omitted from the dataset')
+    parser.add_argument('--threshold', default = 12, type = float, help='No pairs of points in the resulted dataset will have distance less than this threshold (in meters)')
 
     args = parser.parse_args()
     global static_decalib
     static_decalib = args.static_decalib
     depth = args.depth
+    threshold = args.threshold
     #Create output directory and subdirectories
     global output_path
     output_path = args.out_dir
@@ -452,16 +458,22 @@ def main():
     cam_sd_tokens, rad_sd_tokens, sample_names = load_keyframe_rad_cam_data(nusc)
 
     #Load actual sample_data from files in a list of zipped lists
-    image_radar_pairs = tokens_to_data_pairs(nusc, cam_sd_tokens, rad_sd_tokens, depth)
+    image_radar_pairs = tokens_to_data_pairs(nusc, cam_sd_tokens, rad_sd_tokens, depth, threshold)
 
     #Load H_gt and K matrices for each sample_data record
     rad_to_cam_calibration_matrices = []
     cam_intrinsics = []
-    print(len(image_radar_pairs))
+    # scale factor for camera intrinsics accordingly to the resize we perform on the images
+    scale_factor = (IMAGE_HEIGHT / ORIGINAL_HEIGHT)
     for i in range(len(image_radar_pairs)):
         cam_cs_token = nusc.get('sample_data', cam_sd_tokens[i])["calibrated_sensor_token"]
         cam_cs_rec = nusc.get('calibrated_sensor', cam_cs_token)
         K = np.array(cam_cs_rec["camera_intrinsic"])
+        # K_scaled = K
+        # K_scaled[0][0] *= scale_factor
+        # K_scaled[0][2] *= scale_factor
+        # K_scaled[1][1] *= scale_factor
+        # K_scaled[1][2] *= scale_factor
         #nuscenes K is 3x3 and we augment it to 3x4 with an extra zero column
         #since it will be used for mult witl 4x4 H_gt matrix
         K = np.hstack((K, np.zeros((K.shape[0], 1), dtype=K.dtype)))
