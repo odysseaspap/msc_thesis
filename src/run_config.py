@@ -4,8 +4,8 @@ from keras.layers.advanced_activations import PReLU, LeakyReLU, ELU
 
 class RunConfig:
     def __init__(self):
-        self.lr = 0.002
-        self.epochs = 32
+        self.lr = 0.001
+        self.epochs = 40
         self.batch_size = 16
         self.val_split = 0.1
         self.original_resolution = [900, 1600, 3]
@@ -26,7 +26,7 @@ class RunConfig:
         self.point_cloud_loss_factor = 1.0
 
         self.drop_rate = 0.5
-        self.l2_reg = 0.00 #0.004
+        self.l2_reg = 0.00 #0.002
         #self.weight_init = 'glorot_normal'
         #self.mid_layer_activations = 'relu'
         self.weight_init = keras.initializers.Orthogonal()
