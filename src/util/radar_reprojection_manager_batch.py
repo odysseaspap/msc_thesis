@@ -85,7 +85,7 @@ class RadarBatchReprojectionManager:
         data : [ndarray, ndarray]
             Input data of network
         labels : ndarray
-            Labels of data samples with shape: (#_of_samples, 4)
+            Labels of data samples with shape: (#_of_samples, 7)
         radar_detections : list of ndarrays
             List of ndarrays with radar detections of each sample
         h_gt : ndarray
@@ -114,7 +114,8 @@ class RadarBatchReprojectionManager:
         output_quats = self._normalize_quaternions(output_quats)
 
         # Convert to matrices.
-        inv_decalib = self._convert_to_matrices(labels)
+        quat_labels = labels[:, :4]
+        inv_decalib = self._convert_to_matrices(quat_labels)
         decalib = self._invert_homogeneous_matrices(inv_decalib)
         
         inv_decalib_hat = self._convert_to_matrices(output_quats)

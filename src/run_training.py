@@ -158,8 +158,8 @@ def train_model(samples_list_train, samples_list_val, model_name):
             model.output[1], model.output[2], run_config.photometric_loss_factor, run_config.point_cloud_loss_factor)
     }
     loss_weights_dict = {
-        'quat_predicted': 0.0,
-        'depth_maps_predicted': 1.0
+        'quat_predicted': 1.0,
+        'depth_maps_predicted': 0.0
     }
     metrics_dict = {
         'quat_predicted': get_metrics()

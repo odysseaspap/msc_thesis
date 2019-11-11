@@ -105,7 +105,8 @@ class RadarReprojectionManager:
         output_quats = self._normalize_quaternions(output_quats)
 
         # Convert to matrices.
-        inv_decalib = self._convert_to_matrices(labels)
+        quat_labels = labels[:, :4]
+        inv_decalib = self._convert_to_matrices(quat_labels)
         decalib = self._invert_homogeneous_matrices(inv_decalib)
         
         inv_decalib_hat = self._convert_to_matrices(output_quats)
