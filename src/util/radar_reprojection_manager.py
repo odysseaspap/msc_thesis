@@ -15,11 +15,12 @@ class RadarReprojectionManager:
         self._P = p
         self._H_gt = h_gt
 
-    def _convert_to_matrices(self, quaternions):
+    def _convert_to_matrices(self, yaw_angles):
         inv_decalibs = []
-        for quaternion in quaternions:
-            rot_matrix = transformations.quaternion_matrix(quaternion)
-            inv_decalibs.append(rot_matrix)
+        for yaw_angle in yaw_angles:
+            yaw_c, yaw_s = np.cos(yaw_angle), np.sin(yaw_angle)
+            yaw_matrix = np.array([[yaw_c, 0, yaw_s], [0, 1, 0], [-yaw_s, 0, yaw_c]])
+            inv_decalibs.append(yaw_matrix)
         return np.array(inv_decalibs)
 
     def _invert_homogeneous_matrix(self, mat):
@@ -100,15 +101,14 @@ class RadarReprojectionManager:
 
         # Generate model output.
         model_outputs = model.predict(data)
-        output_quats = model_outputs[0]
-        #output_quats = model_outputs[:,:4] # Crop noise output.
-        output_quats = self._normalize_quaternions(output_quats)
+        output_yaws = model_outputs[0]
 
         # Convert to matrices.
-        inv_decalib = self._convert_to_matrices(labels)
+        yaw_labels = labels[:, 0]
+        inv_decalib = self._convert_to_matrices(yaw_labels)
         decalib = self._invert_homogeneous_matrices(inv_decalib)
         
-        inv_decalib_hat = self._convert_to_matrices(output_quats)
+        inv_decalib_hat = self._convert_to_matrices(output_yaws)
         decalibs_hat = self._invert_homogeneous_matrices(inv_decalib_hat)
 
         # Recompute projections.
@@ -188,10 +188,10 @@ class RadarReprojectionManager:
             Resulting label: residual decalibration
         """
         img, proj_decalib, proj_gt, radar_detections, decalib, K, H_gt, dims = dl.load_complete_sample(sample_file)
-        trans_label = decalib[4:]
+        trans_label = decalib[1:]
         #k_mat = K[:, :3]
         data = [img, proj_decalib, K, trans_label]
-        label = decalib[:4]
+        yaw_label = decalib[0]
         self._H_gt = H_gt
         self._P = K
         self._orig_height = dims[0]
@@ -200,15 +200,18 @@ class RadarReprojectionManager:
         # Generate model output.
         model_output = model.predict(data)
         #output_quats = model_output[:,:4] # Crop noise output.
-        output_quats = model_output[0]
-        output_quats = self._normalize_quaternions(output_quats)
+        output_yaws = model_output[0]
+        #output_quats = self._normalize_quaternions(output_quats)
 
         # Convert to matrices.
-        inv_decalib = transformations.quaternion_matrix(label)
+        yaw_c, yaw_s = np.cos(yaw_label), np.sin(yaw_label)
+        inv_decalib = np.array([[yaw_c, 0, yaw_s], [0, 1, 0], [-yaw_s, 0, yaw_c]])
         #inv_decalib = self._convert_to_matrices(label)
         decalib = self._invert_homogeneous_matrix(inv_decalib)
-        
-        inv_decalib_hat = transformations.quaternion_matrix(output_quats[0,:])
+
+        output_yaw = output_yaws[0, :]
+        yaw_c_out, yaw_s_out = np.cos(output_yaw), np.sin(output_yaw)
+        inv_decalib_hat = np.array([[yaw_c_out, 0, yaw_s_out], [0, 1, 0], [-yaw_s_out, 0, yaw_c_out]])
         decalibs_hat = self._invert_homogeneous_matrix(inv_decalib_hat)
 
         # Recompute projections.

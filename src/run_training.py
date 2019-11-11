@@ -82,12 +82,10 @@ def compute_example_predictions(model, sample_file_names, num_prints):
         print("Label: " + str(label))
         output = model.predict([input_1, input_2, input_3, input_4])
         # Normalize quaternions.
-        quats = output[0]
-        #quats = output[:,:4]
-        inv_mags = 1. / np.sqrt(np.sum(np.square(quats), axis=1))
-        quats_normalized = np.transpose(np.transpose(quats) * inv_mags)
-        # print("Output unnormalized: " + str(quats[0]))
-        print("Output: " + str(quats_normalized[0]))
+        yaw = output[0]
+        yaw_degree = yaw * (180./math.pi)
+
+        print("Output: " + str(yaw_degree))
 
 def create_callbacks(model_name):
     callbacks = []
@@ -105,10 +103,10 @@ def get_metrics():
     # metrics.append(rot_loss)
     # metrics.append(trans_loss)
     # Metrics.
-    metrics.append(met.rot_angle_error)
-    metrics.append(met.tilt_error)
+    #metrics.append(met.rot_angle_error)
+    #metrics.append(met.tilt_error)
     metrics.append(met.pan_error)
-    metrics.append(met.roll_error)
+    #metrics.append(met.roll_error)
     # metrics.append(trans_error)
     # metrics.append(trans_error_x)
     # metrics.append(trans_error_y)
@@ -153,13 +151,13 @@ def train_model(samples_list_train, samples_list_val, model_name):
     # Use a specific loss and metric for each specific output,
     # based on the name of the output Layer
     losses_dic = {
-        'quat_predicted': loss_fn.keras_weighted_quaternion_translation_loss(run_config.length_error_weight),
+        'quat_predicted': loss_fn.keras_weighted_yaw_loss(run_config.length_error_weight),
         'depth_maps_predicted': loss_fn.keras_photometric_and_3d_pointcloud_loss(model.input[1], model.input[2],
             model.output[1], model.output[2], run_config.photometric_loss_factor, run_config.point_cloud_loss_factor)
     }
     loss_weights_dict = {
-        'quat_predicted': 0.0,
-        'depth_maps_predicted': 1.0
+        'quat_predicted': 1.0,
+        'depth_maps_predicted': 0.0
     }
     metrics_dict = {
         'quat_predicted': get_metrics()
@@ -214,7 +212,7 @@ def start_training(samples_list):
     print("Reprojecting and storing validation data")
     #print(K.int_shape(decalibs))
     #print(K.int_shape(Ks))
-    trans_labels = decalibs[:, 4:]
+    trans_labels = decalibs[:, 1:]
     #k_mats = Ks[:, :, :3]
     #print(K.int_shape(trans_labels))
     #print(K.int_shape(k_mats))
@@ -345,7 +343,7 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     # Instantiate reprojection manager.
     reprojection_manager = RadarReprojectionManager(run_config.original_resolution, run_config.input_shape, np.identity(4), np.identity(4))
     reprojection_manager_batch = RadarBatchReprojectionManager(run_config.original_resolution, run_config.input_shape)
-    trans_labels = decalibs[:, 4:]
+    trans_labels = decalibs[:, 1:]
     #k_mats = Ks[:, :, :3]
     # Apply model.
     print("Applying model...")
@@ -356,7 +354,7 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
         projections_2, labels_2 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_1, Ks, trans_labels_1], labels_1, radar_detections, H_gts, Ks, dims, model_2)
     else:
         projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections_decalib, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
-        trans_labels_1 = labels_1[:, 4:]
+        trans_labels_1 = labels_1[:, 1:]
         projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1, Ks, trans_labels_1], labels_1, radar_detections, H_gts, Ks, model_2)
 
     print("Reprojection time: " + str(time() - start_time))
@@ -409,7 +407,7 @@ def cross_evaluate_models_static_decalib(models_path, samples_list):
         Ks = Ks_init
         radar_detections = radar_detections_init
 
-        decalib = dec.create_decalib_transformation(10., 0.1)
+        decalib = dec.create_decalib_transformation(10., 0.0)
 
         decalib_inverted = dec.invert_homogeneous_matrix(decalib) # Invert for training label.
         rotation = decalib_inverted[:3, :3]
@@ -449,7 +447,7 @@ def cross_evaluate_models_static_decalib(models_path, samples_list):
 
         # Apply model.
         print("Applying model...")
-        trans_labels = decalibs[:, 4:]
+        trans_labels = decalibs[:, 1:]
         #k_mats = Ks[:, :, :3]
         projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections, Ks, trans_labels], labels, radar_detections, H_gts, Ks, model_1)
         trans_labels_1 = trans_labels #labels_1[:, 4:]

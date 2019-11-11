@@ -85,7 +85,7 @@ class RadarBatchReprojectionManager:
         data : [ndarray, ndarray]
             Input data of network
         labels : ndarray
-            Labels of data samples with shape: (#_of_samples, 4)
+            Labels of data samples with shape: (#_of_samples, 1)
         radar_detections : list of ndarrays
             List of ndarrays with radar detections of each sample
         h_gt : ndarray

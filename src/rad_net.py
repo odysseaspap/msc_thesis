@@ -49,7 +49,7 @@ class RadNet:
             radar_stream_out = MaxPooling2D(pool_size=(4,4))(radar_input)
         
         with tf.name_scope('calibration_block'):
-            predicted_decalib_quat = self._calibration_block(rgb_stream_out, radar_stream_out)
+            predicted_decalib_yaw = self._calibration_block(rgb_stream_out, radar_stream_out)
 
         with tf.name_scope('se3_block'):
             # The below Lambda layers have 0 trainable parameters
@@ -64,14 +64,14 @@ class RadNet:
             decalib_gt_trans = Input(shape=(3, ))
             # Wrap Spatial Transformer functions in a Lambda layer
             #print(K.int_shape(predicted_decalib_quat))
-            stl_output = Lambda(self._spatial_transformer_layers, name="ST_Layer")([predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans])
+            stl_output = Lambda(self._spatial_transformer_layers, name="ST_Layer")([predicted_decalib_yaw, radar_input, k_mat, decalib_gt_trans])
             # Separate the outputs using two "identity" Lambda layers with different naming
             # This way, we can use dictionary to map correctly the losses
-            depth_maps_predicted = Lambda(lambda x: x, name="depth_maps_predicted")(stl_output[0])
-            cloud_pred = Lambda(lambda x: x, name="cloud_predicted")(stl_output[1])
+            depth_maps_predicted = Lambda(lambda x: x, name="depth_maps")(stl_output[0])
+            cloud_pred = Lambda(lambda x: x, name="cloud")(stl_output[1])
 
         # Compose model.
-        return Model(inputs=[rgb_input, radar_input, k_mat, decalib_gt_trans], outputs=[predicted_decalib_quat, depth_maps_predicted, cloud_pred])
+        return Model(inputs=[rgb_input, radar_input, k_mat, decalib_gt_trans], outputs=[predicted_decalib_yaw, depth_maps_predicted, cloud_pred])
 
     def _rgb_stream(self, rgb_input):
         pretrained_out = self._pretrained_block(rgb_input)
@@ -113,8 +113,8 @@ class RadNet:
             drop_1 = keras.layers.Dropout(self._drop_rate)(fc_1)
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
-            predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="quat_predicted")(fc_2)
-        return predicted_decalib_quat
+            predicted_decalib_yaw = Dense(1, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="yaw_angle")(fc_2)
+        return predicted_decalib_yaw
 
     def _spatial_transformer_layers(self, input_list):
         """
@@ -128,17 +128,20 @@ class RadNet:
 
         """
         # TODO: Modify the following operations from CalibNet
-        predicted_decalib_quat = input_list[0]
+        predicted_decalib_yaw = input_list[0]
         radar_input = input_list[1]
         k_mat = input_list[2]
         decalib_gt_trans = input_list[3]
 
         #k_mat_fixed = tf.constant([[1260.8474446004698, 0.0, 807.968244525554], [0.0, 1260.8474446004698, 495.3344268742088], [0.0, 0.0, 1.0]])
         # se(3) -> SE(3) (for the whole batch):
-        # Create augmented transform matrix from predicted quaternion and ground truth translation vector
+        # Create augmented transform matrix from predicted yaw and ground truth translation vector
         batch_size = tf.shape(radar_input)[0]
         decalib_gt_trans = tf.reshape(decalib_gt_trans, (batch_size, 3, 1))
-        predicted_transform_augm = qt_ops.transform_from_quat_and_trans(predicted_decalib_quat, decalib_gt_trans)
+        # rotation_matrix_3d.from_euler expects  [x - pitch, y - yaw, z- roll] vectors in Radians
+        paddings = tf.constant([[0, 0], [1, 1]])
+        predicted_decalib_pyr = tf.pad(predicted_decalib_yaw, paddings, constant_values=0.0)
+        predicted_transform_augm = qt_ops.transform_from_pyr_and_trans(predicted_decalib_pyr, decalib_gt_trans)
 
         # transforms depth maps by the predicted transformation
         depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))

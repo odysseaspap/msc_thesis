@@ -69,8 +69,8 @@ class DataGenerator(keras.utils.Sequence):
         batch_radar_input = np.empty((self.batch_size, *self.dim, self.radar_channels))
         batch_k_mat = np.empty((self.batch_size, 3, 4))
         batch_trans_label = np.empty((self.batch_size, 3))
-        batch_labels = np.empty((self.batch_size, 7))
-        batch_augmented_quat_labels = np.empty((self.batch_size, 4))
+        batch_labels = np.empty((self.batch_size, 4))
+        batch_augmented_yaw_labels = np.empty((self.batch_size, 1))
 
         # Load and augment data samples
         for i, ID in enumerate(list_IDs_batch):
@@ -79,10 +79,10 @@ class DataGenerator(keras.utils.Sequence):
             if self.use_augmented_data == True:
                 projection_aug, label_aug = dl.load_augmented_projection_sample(self.path_augmented_data + str(ID).split("/")[-1])
                 batch_radar_input[i,] = projection_aug
-                batch_augmented_quat_labels[i,] = label_aug
+                batch_augmented_yaw_labels[i,] = label_aug
                 # since the trans vectors are not actively used for now, we can simply concat the augmented
                 # quat labels with the original zero trans labels
-                batch_labels[i,] = np.hstack((batch_augmented_quat_labels[i,], batch_trans_label[i,]))
+                batch_labels[i,] = np.hstack((batch_augmented_yaw_labels[i,], batch_trans_label[i,]))
             # [batch_rgb_input[i,], batch_radar_input[i,]], batch_labels[i,] = self._augment_data(sample["rgb_image"], sample["radar_detections"], sample["K"], sample["H_gt"], sample["rgb_image_orig_dim"][0], sample["rgb_image_orig_dim"][1])
             # increase stored depth values in radar input for better training performance
             batch_radar_input[i,] = batch_radar_input[i,] * self.radar_input_factor

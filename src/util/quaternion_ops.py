@@ -61,6 +61,23 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
 
     return transform_augm
 
+def transform_from_pyr_and_trans(pyr_vector, trans_vector):
+    """
+    Method that creates an augmented transform which includes the batch size
+    in the output shape
+    :param pyr_vector: (batch_size, 3) [x - pitch, y - yaw, z- roll] vectors
+    :param trans_vector: (batch_size, 3, 1) translation vectors
+    :return: transform_augm (batch_size, 4, 4) augmented transform matrix
+    """
+    # rotation_matrix_3d.from_euler expects  [x - pitch, y - yaw, z- roll] vectors
+    predicted_rot_mat = tfg_rot_mat.from_euler(pyr_vector)
+    paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
+    predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
+    decalib_qt_trans_augm = tf.pad(trans_vector, paddings, constant_values=1)
+    transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
+
+    return transform_augm
+
 if __name__ == '__main__': # For debugging.
     quat = tf.constant([[1.0, 2.0, 3.0, 1.0], [0.0, 0.0, 0.0, 1.0]])
     trans_vector = tf.constant([[[1.0], [2.0], [3.0]], [[1.0], [2.0], [3.0]]])

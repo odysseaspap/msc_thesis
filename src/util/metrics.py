@@ -43,13 +43,15 @@ def tilt_error(y_true, y_pred):
 	# X = math.degrees(math.atan2(t0, t1))
 
 def pan_error(y_true, y_pred):
-    y_true = y_true[:, :4]
-    delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
-    q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
-    t0 = 2.*(q0*q2 + q3*q1)
-    t0 = tf.clip_by_value(t0, clip_value_min=-0.999999999, clip_value_max=0.999999999)
-    pan_deg = tf.asin(t0) * (180./math.pi)
+    y_true = y_true[:, :0]
+    #delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
+    #q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
+    #t0 = 2.*(q0*q2 + q3*q1)
+    #t0 = tf.clip_by_value(t0, clip_value_min=-0.999999999, clip_value_max=0.999999999)
+    pan_diff = y_true - y_pred
+    pan_deg = pan_diff * (180./math.pi)
     pan_deg = tf.abs(pan_deg)
+    #mse_error = tf.reduce_mean(tf.reduce_sum(tf.square(y_true - y_pred), axis = 1))
     return tf.reduce_mean(pan_deg)
 	# t2 = +2.0 * (w * y - z * x)
 	# t2 = +1.0 if t2 > +1.0 else t2

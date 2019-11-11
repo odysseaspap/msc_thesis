@@ -41,7 +41,7 @@ def create_random_rotation_matrix(angle_std_dev):
     pitch_c, pitch_s = np.cos(pitch_angle), np.sin(pitch_angle)
     pitch_matrix = np.array([[1, 0, 0], [0, pitch_c, -pitch_s], [0, pitch_s, pitch_c]])
 
-    # Create overall rotation matrix
+    # Create overall rotation matrix R = RzRxRy
     return (roll_matrix.dot(pitch_matrix.dot(yaw_matrix)))
 
 def create_random_translation_vector(translation_std_dev):
