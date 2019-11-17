@@ -52,6 +52,8 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     :param trans_vector: (batch_size, 3, 1) translation vectors
     :return: transform_augm (batch_size, 4, 4) augmented transform matrix
     """
+    # we use [w, x, y, z] quaternion notation but TF Geometry lib expects [x, y, z, w]
+    quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
     quat_normalized = tfg_quaternion.normalize(quaternion)
     predicted_rot_mat = tfg_rot_mat.from_quaternion(quat_normalized)
     paddings = tf.constant([[0, 0], [0, 1], [0, 0]])

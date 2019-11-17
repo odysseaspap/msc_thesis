@@ -79,13 +79,13 @@ def compute_example_predictions(model, sample_file_names, num_prints):
         input_2 = np.expand_dims(input_2, axis=0)
         input_3 = np.expand_dims(input_3, axis=0)
         input_4 = np.expand_dims(input_4, axis=0)
-        print("Label: " + str(label))
+        print("Label: " + str(label[0]))
         output = model.predict([input_1, input_2, input_3, input_4])
         # Normalize quaternions.
         yaw = output[0]
-        yaw_degree = yaw * (180./math.pi)
+        #yaw_degree = yaw * (180./math.pi)
 
-        print("Output: " + str(yaw_degree))
+        print("Output: " + str(yaw))
 
 def create_callbacks(model_name):
     callbacks = []
@@ -151,21 +151,21 @@ def train_model(samples_list_train, samples_list_val, model_name):
     # Use a specific loss and metric for each specific output,
     # based on the name of the output Layer
     losses_dic = {
-        'quat_predicted': loss_fn.keras_weighted_yaw_loss(run_config.length_error_weight),
-        'depth_maps_predicted': loss_fn.keras_photometric_and_3d_pointcloud_loss(model.input[1], model.input[2],
+        'yaw_angle': loss_fn.keras_weighted_yaw_loss(run_config.length_error_weight),
+        'cloud': loss_fn.keras_photometric_and_3d_pointcloud_loss(model.input[1], model.input[2],
             model.output[1], model.output[2], run_config.photometric_loss_factor, run_config.point_cloud_loss_factor)
     }
     loss_weights_dict = {
-        'quat_predicted': 1.0,
-        'depth_maps_predicted': 0.0
+        'yaw_angle': 1.0,
+        'cloud': 0.0
     }
     metrics_dict = {
-        'quat_predicted': get_metrics()
+        'yaw_angle': get_metrics()
     }
     model.compile(loss=losses_dic, loss_weights=loss_weights_dict, optimizer=optimizer, metrics=metrics_dict)
     callback_list = create_callbacks(model_name)
     history = model.fit_generator(generator=training_generator, validation_data=validation_generator,
-                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6)
+                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6, verbose=1)
     # Generate training visualizations.
     model_output_folder = experiments_path + model_name + '/'
     model.save(experiments_path + model_name + '.h5')

@@ -35,6 +35,7 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     y_true = tf.reshape(y_true, (batch_size, 4))
 
     yaw_expected = y_true[:, 0]
+    yaw_expected = tf.reshape(yaw_expected, (batch_size, 1))
     trans_expected = y_true[:, 1:]
     trans_expected = tf.reshape(trans_expected, (batch_size, 3, 1))
 
@@ -60,9 +61,9 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
 
     # final loss term
     #predicted_loss_train = alpha * photometric_loss #+ beta * cloud_loss
-    predicted_loss_train = cloud_loss
+    #predicted_loss_train = cloud_loss
 
-    return predicted_loss_train
+    return cloud_loss
 
 
 

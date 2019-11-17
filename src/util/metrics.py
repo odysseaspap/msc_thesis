@@ -30,12 +30,9 @@ def rot_angle_error(y_true, y_pred):
         return tf.reduce_mean(diffs_deg)
 
 def tilt_error(y_true, y_pred):
-    y_true = y_true[:, :4]
-    delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
-    q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
-    t0 = 2.*(q0*q1 + q2*q3)
-    t1 = 1. - 2.*(tf.square(q1) + tf.square(q2))
-    tilt_deg = tf.atan2(t0, t1) * (180./math.pi)
+    y_true = y_true[:, 1]
+    tilt_diff = y_true - y_pred
+    tilt_deg = tilt_diff*(180./math.pi)
     tilt_deg = tf.abs(tilt_deg)
     return tf.reduce_mean(tilt_deg)
 	# t0 = +2.0 * (w * x + y * z)
@@ -43,11 +40,7 @@ def tilt_error(y_true, y_pred):
 	# X = math.degrees(math.atan2(t0, t1))
 
 def pan_error(y_true, y_pred):
-    y_true = y_true[:, :0]
-    #delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
-    #q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
-    #t0 = 2.*(q0*q2 + q3*q1)
-    #t0 = tf.clip_by_value(t0, clip_value_min=-0.999999999, clip_value_max=0.999999999)
+    y_true = y_true[:, 0]
     pan_diff = y_true - y_pred
     pan_deg = pan_diff * (180./math.pi)
     pan_deg = tf.abs(pan_deg)
@@ -59,14 +52,12 @@ def pan_error(y_true, y_pred):
 	# Y = math.degrees(math.asin(t2))
 
 def roll_error(y_true, y_pred):
-    y_true = y_true[:, :4]
-    delta_quaternion = quat.compute_delta_quaternion(y_true, y_pred)
-    q0, q1, q2, q3 = tf.split(delta_quaternion, [1, 1, 1, 1], axis=1)
-    t0 = 2.*(q0*q3 + q1*q2)
-    t1 = 1. - 2.*(tf.square(q2) + tf.square(q3))
-    roll_deg = tf.atan2(t0, t1) * (180./math.pi)
+    y_true = y_true[:, 2]
+    roll_diff = y_true - y_pred
+    roll_deg = roll_diff * (180. / math.pi)
     roll_deg = tf.abs(roll_deg)
     return tf.reduce_mean(roll_deg)
+
 	# t3 = +2.0 * (w * z + x * y)
 	# t4 = +1.0 - 2.0 * (ysqr + z * z)
 	# Z = math.degrees(math.atan2(t3, t4))

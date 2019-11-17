@@ -65,7 +65,7 @@ def load_radnet_training_sample_with_intrinsics_gt_decalib(sample_file):
         tuple of rgb image, projected radar detections, camera intrinsics matrix
         and ground truth quaternion and translation inverse decalibration
     label : ndarray
-        7x1 vector: 1x4 Quaternions of inverse decalibration rotation
+        4x1 vector: yaw angle in radians for inverse decalibration rotation
         and 1x3 translation vector which represents ground truth (inverse)
         translation decalibration
     """
@@ -76,9 +76,8 @@ def load_radnet_training_sample_with_intrinsics_gt_decalib(sample_file):
 
         trans_label = sample["decalib"][4:]
         quat_label = sample["decalib"][:4]
-        yaw_label = quaternion_to_euler(quat_label)[0]
+        yaw_label = quaternion_to_euler(quat_label)[1]
         label = np.insert(trans_label, 0, yaw_label, axis = 0)
-
     return [rgb_image, radar_input, k_mat, trans_label], label
 
 def load_data_from_samples(dataset_path, file_list, keys):
@@ -160,8 +159,8 @@ def load_complete_sample(sample_file):
 
     radar_detections : ndarray (4, 1, number_of_detections)
 
-    decalib : ndarray (4,)
-        inverted transformation between camera and radar rotation as quaternions YAW only (idx 0) and translation concatenated (1-3)
+    decalib : ndarray (7,)
+        inverted transformation between camera and radar rotation as YAW only (idx 0) and translation concatenated (1-3)
     K : ndarray (3, 4)
 
     H_gt : ndarray (4, 4)
@@ -177,7 +176,7 @@ def load_complete_sample(sample_file):
         #decalib = sample["decalib"]
         trans_label = sample["decalib"][4:]
         quat_label = sample["decalib"][:4]
-        yaw_label = quaternion_to_euler(quat_label)[0]
+        yaw_label = quaternion_to_euler(quat_label)[1]
         decalib = np.insert(trans_label, 0, yaw_label, axis=0)
         K = sample["K"]
         H_gt = sample["H_gt"]
@@ -221,10 +220,11 @@ def load_augmented_projection_sample(abs_file_name):
         Absolute path to file including ending
     """
     with load_np_file(abs_file_name) as sample:
-        label = sample["label"]
+        quat_label = sample["label"]
+        yaw_label = quaternion_to_euler(quat_label)[1]
         projections = get_projections_from_npz_file(sample, "projections")
 
-    return projections, label
+    return projections, yaw_label
 
 def load_dataset(file_list):
     """
@@ -279,15 +279,19 @@ def load_dataset(file_list):
 
 
 def quaternion_to_euler(quaternion):
-    w, x, y, z = np.split(quaternion, [1, 1, 1, 1], axis=1)
+    w, x, y, z = quaternion[0], quaternion[1], quaternion[2], quaternion[3]
     t0 = +2.0 * (w * x + y * z)
     t1 = +1.0 - 2.0 * (x * x + y * y)
-    roll = math.atan2(t0, t1)
+    # pitch = x-axis rotation
+    pitch = math.atan2(t0, t1)
     t2 = +2.0 * (w * y - z * x)
     t2 = +1.0 if t2 > +1.0 else t2
     t2 = -1.0 if t2 < -1.0 else t2
-    pitch = math.asin(t2)
+    # yaw = y-axis rotation
+    yaw = math.asin(t2)
     t3 = +2.0 * (w * z + x * y)
     t4 = +1.0 - 2.0 * (y * y + z * z)
-    yaw = math.atan2(t3, t4)
-    return [yaw, pitch, roll]
+    # roll = z-axis rotation
+    roll = math.atan2(t3, t4)
+
+    return [pitch, yaw, roll]

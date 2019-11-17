@@ -10,11 +10,12 @@ class RadarBatchReprojectionManager:
         self._proj_height = projection_resolution[0]
         self._proj_width = projection_resolution[1]
 
-    def _convert_to_matrices(self, quaternions):
+    def _convert_to_matrices(self, yaw_angles):
         inv_decalibs = []
-        for quaternion in quaternions:
-            rot_matrix = transformations.quaternion_matrix(quaternion)
-            inv_decalibs.append(rot_matrix)
+        for yaw_angle in yaw_angles:
+            yaw_c, yaw_s = np.cos(yaw_angle), np.sin(yaw_angle)
+            yaw_matrix = np.array([[yaw_c, 0.0, yaw_s, 0.0], [0.0, 1.0, 0.0, 0.0], [-yaw_s, 0.0, yaw_c, 0.0], [0.0, 0.0, 0.0, 1.0]], dtype='float')
+            inv_decalibs.append(yaw_matrix)
         return np.array(inv_decalibs)
 
     def _invert_homogeneous_matrix(self, mat):
@@ -85,7 +86,7 @@ class RadarBatchReprojectionManager:
         data : [ndarray, ndarray]
             Input data of network
         labels : ndarray
-            Labels of data samples with shape: (#_of_samples, 1)
+            Labels of data samples with shape: (#_of_samples, 4)
         radar_detections : list of ndarrays
             List of ndarrays with radar detections of each sample
         h_gt : ndarray
@@ -109,15 +110,14 @@ class RadarBatchReprojectionManager:
 
         # Generate model output.
         model_outputs = model.predict(data)
-        output_quats = model_outputs[0]
-        #output_quats = model_outputs[:,:4] # Crop noise output.
-        output_quats = self._normalize_quaternions(output_quats)
+        output_yaws = model_outputs[0]
 
         # Convert to matrices.
-        inv_decalib = self._convert_to_matrices(labels)
+        yaw_labels = labels[:, 0]
+        inv_decalib = self._convert_to_matrices(yaw_labels)
         decalib = self._invert_homogeneous_matrices(inv_decalib)
-        
-        inv_decalib_hat = self._convert_to_matrices(output_quats)
+
+        inv_decalib_hat = self._convert_to_matrices(output_yaws)
         decalibs_hat = self._invert_homogeneous_matrices(inv_decalib_hat)
 
         # Recompute projections.

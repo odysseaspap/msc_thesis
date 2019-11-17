@@ -19,7 +19,7 @@ class RadarReprojectionManager:
         inv_decalibs = []
         for yaw_angle in yaw_angles:
             yaw_c, yaw_s = np.cos(yaw_angle), np.sin(yaw_angle)
-            yaw_matrix = np.array([[yaw_c, 0, yaw_s], [0, 1, 0], [-yaw_s, 0, yaw_c]])
+            yaw_matrix = np.array([[yaw_c, 0.0, yaw_s, 0.0], [0.0, 1.0, 0.0, 0.0], [-yaw_s, 0.0, yaw_c, 0.0], [0.0, 0.0, 0.0, 1.0]], dtype='float')
             inv_decalibs.append(yaw_matrix)
         return np.array(inv_decalibs)
 
@@ -205,13 +205,13 @@ class RadarReprojectionManager:
 
         # Convert to matrices.
         yaw_c, yaw_s = np.cos(yaw_label), np.sin(yaw_label)
-        inv_decalib = np.array([[yaw_c, 0, yaw_s], [0, 1, 0], [-yaw_s, 0, yaw_c]])
+        inv_decalib = np.array([[yaw_c, 0.0, yaw_s, 0.0], [0.0, 1.0, 0.0, 0.0], [-yaw_s, 0.0, yaw_c, 0.0], [0.0, 0.0, 0.0, 1.0]], dtype='float')
         #inv_decalib = self._convert_to_matrices(label)
         decalib = self._invert_homogeneous_matrix(inv_decalib)
 
         output_yaw = output_yaws[0, :]
         yaw_c_out, yaw_s_out = np.cos(output_yaw), np.sin(output_yaw)
-        inv_decalib_hat = np.array([[yaw_c_out, 0, yaw_s_out], [0, 1, 0], [-yaw_s_out, 0, yaw_c_out]])
+        inv_decalib_hat = np.array([[yaw_c_out, 0.0, yaw_s_out, 0.0], [0.0, 1.0, 0.0, 0.0], [-yaw_s_out, 0.0, yaw_c_out, 0.0], [0.0, 0.0, 0.0, 1.0]], dtype='float')
         decalibs_hat = self._invert_homogeneous_matrix(inv_decalib_hat)
 
         # Recompute projections.
