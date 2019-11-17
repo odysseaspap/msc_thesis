@@ -3,6 +3,7 @@ import keras.backend as K
 from util import all_transformer as at3
 from util import quaternion_ops as qt_ops
 #from util import model_utils
+from util import metrics as met
 
 def keras_photometric_and_3d_pointcloud_loss(radar_input, k_mat, depth_maps_predicted, cloud_pred, alpha = 1.0, beta = 1.0):
     """
