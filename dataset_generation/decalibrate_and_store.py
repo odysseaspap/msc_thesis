@@ -371,7 +371,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/jupyter/thesis/data/sets/nuscenes_RADNET/nuscenes_08_RADNET', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/jupyter/thesis/data/sets/nuscenes_RADNET/nuscenes_10_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()

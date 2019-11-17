@@ -67,8 +67,8 @@ class RadNet:
             stl_output = Lambda(self._spatial_transformer_layers, name="ST_Layer")([predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans])
             # Separate the outputs using two "identity" Lambda layers with different naming
             # This way, we can use dictionary to map correctly the losses
-            depth_maps_predicted = Lambda(lambda x: x, name="depth_maps_predicted")(stl_output[0])
-            cloud_pred = Lambda(lambda x: x, name="cloud_predicted")(stl_output[1])
+            depth_maps_predicted = Lambda(lambda x: x, name="depth_maps")(stl_output[0])
+            cloud_pred = Lambda(lambda x: x, name="cloud")(stl_output[1])
 
         # Compose model.
         return Model(inputs=[rgb_input, radar_input, k_mat, decalib_gt_trans], outputs=[predicted_decalib_quat, depth_maps_predicted, cloud_pred])
@@ -113,7 +113,7 @@ class RadNet:
             drop_1 = keras.layers.Dropout(self._drop_rate)(fc_1)
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
-            predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="quat_predicted")(fc_2)
+            predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="quaternion")(fc_2)
         return predicted_decalib_quat
 
     def _spatial_transformer_layers(self, input_list):

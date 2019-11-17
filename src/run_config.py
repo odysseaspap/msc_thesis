@@ -4,8 +4,8 @@ from keras.layers.advanced_activations import PReLU, LeakyReLU, ELU
 
 class RunConfig:
     def __init__(self):
-        self.lr = 0.001
-        self.epochs = 40
+        self.lr = 0.002
+        self.epochs = 32
         self.batch_size = 16
         self.val_split = 0.1
         self.original_resolution = [900, 1600, 3]

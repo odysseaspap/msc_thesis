@@ -380,10 +380,10 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_3Ddist12m_filtered', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/jupyter/thesis/data/sets/nuscenes_RADNET_3Ddist10m_filtered/nuscenes_10_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
     parser.add_argument('--depth', default = 300.0, type = float, help='Distance (meters) from radar sensor above which detections are omitted from the dataset')
-    parser.add_argument('--threshold', default = 12, type = float, help='No pairs of points in the resulted dataset will have distance less than this threshold (in meters)')
+    parser.add_argument('--threshold', default = 10, type = float, help='No pairs of points in the resulted dataset will have distance less than this threshold (in meters)')
 
     args = parser.parse_args()
     global static_decalib
@@ -452,7 +452,7 @@ def main():
             raise
 
     #Instantiate an object of the NuScenes dataset class
-    nusc = NuScenes(version='v1.0-mini', dataroot='/home/odysseas/thesis/data/sets/nuscenes_mini/', verbose=True)
+    nusc = NuScenes(version='v1.0-trainval', dataroot='/home/jupyter/thesis/data/sets/nuscenes/', verbose=True)
 
     #Load front_cam and front_rad sample_data info in respective lists
     cam_sd_tokens, rad_sd_tokens, sample_names = load_keyframe_rad_cam_data(nusc)
