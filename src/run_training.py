@@ -86,7 +86,7 @@ def compute_example_predictions(model, sample_file_names, num_prints):
         #quats = output[:,:4]
         inv_mags = 1. / np.sqrt(np.sum(np.square(quats), axis=1))
         quats_normalized = np.transpose(np.transpose(quats) * inv_mags)
-        # print("Output unnormalized: " + str(quats[0]))
+        #print("Output unnormalized: " + str(quats[0]))
         print("Output: " + str(quats_normalized[0]))
 
 def create_callbacks(model_name):
@@ -158,8 +158,8 @@ def train_model(samples_list_train, samples_list_val, model_name):
             model.output[1], model.output[2], run_config.photometric_loss_factor, run_config.point_cloud_loss_factor)
     }
     loss_weights_dict = {
-        'quaternion': 1.0,
-        'cloud': 0.0
+        'quaternion': 0.0,
+        'cloud': 1.0
     }
     metrics_dict = {
         'quaternion': get_metrics()

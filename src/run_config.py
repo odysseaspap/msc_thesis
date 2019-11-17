@@ -5,9 +5,9 @@ from keras.layers.advanced_activations import PReLU, LeakyReLU, ELU
 class RunConfig:
     def __init__(self):
         self.lr = 0.002
-        self.epochs = 5
+        self.epochs = 10
         self.batch_size = 16
-        self.val_split = 0.2
+        self.val_split = 0.1
         self.original_resolution = [900, 1600, 3]
         self.input_shape = [150, 240, 3]
 
@@ -16,7 +16,7 @@ class RunConfig:
 
         # Decalibration params.
         self.rotation_std_dev = 10 # in degree
-        self.translation_std_dev = 0.1 # in meter
+        self.translation_std_dev = 0.0 # in meter
         self.min_number_projections = 10
 
         # Network params.
