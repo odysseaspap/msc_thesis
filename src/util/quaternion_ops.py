@@ -55,9 +55,9 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     # we use [w, x, y, z] quaternion notation but TF Geometry lib expects [x, y, z, w]
     quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
     #TODO: if I don't normalize here, quat_loss drops even when only cloud_loss is used!
-    # However, cloud_loss is much bigger!
-    #quat_normalized = tfg_quaternion.normalize(quaternion)
-    predicted_rot_mat = tfg_rot_mat.from_quaternion(quaternion)
+    # However, cloud_loss is much bigger and output quat is not similar to label quat!
+    quat_normalized = tfg_quaternion.normalize(quaternion)
+    predicted_rot_mat = tfg_rot_mat.from_quaternion(quat_normalized)
     paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
     predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
     decalib_qt_trans_augm = tf.pad(trans_vector, paddings, constant_values=1)

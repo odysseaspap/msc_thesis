@@ -50,6 +50,10 @@ class RadNet:
         
         with tf.name_scope('calibration_block'):
             predicted_decalib_quat = self._calibration_block(rgb_stream_out, radar_stream_out)
+            # When only cloud_loss is used, model might learn -q instead of q because they represent the same rotation!
+            # So, here we check if w<0.0 and in this case we flip the signs
+            # The same is performed in DualQuat/transformations.py +1370
+            predicted_decalib_quat = tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), predicted_decalib_quat, dtype="float32")
 
         with tf.name_scope('se3_block'):
             # The below Lambda layers have 0 trainable parameters

@@ -81,9 +81,8 @@ def compute_example_predictions(model, sample_file_names, num_prints):
         input_4 = np.expand_dims(input_4, axis=0)
         print("Label: " + str(label))
         output = model.predict([input_1, input_2, input_3, input_4])
-        # Normalize quaternions.
         quats = output[0]
-        #quats = output[:,:4]
+        # Normalize quaternions.
         inv_mags = 1. / np.sqrt(np.sum(np.square(quats), axis=1))
         quats_normalized = np.transpose(np.transpose(quats) * inv_mags)
         #print("Output unnormalized: " + str(quats[0]))
