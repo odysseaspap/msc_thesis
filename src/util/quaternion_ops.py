@@ -53,17 +53,43 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     :return: transform_augm (batch_size, 4, 4) augmented transform matrix
     """
     # we use [w, x, y, z] quaternion notation but TF Geometry lib expects [x, y, z, w]
-    quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
-    #TODO: if I don't normalize here, quat_loss drops even when only cloud_loss is used!
-    # However, cloud_loss is much bigger and output quat is not similar to label quat!
-    quat_normalized = tfg_quaternion.normalize(quaternion)
-    predicted_rot_mat = tfg_rot_mat.from_quaternion(quat_normalized)
+    #quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
+
+    quat_normalized = tfg_quaternion.normalize(quaternion) #normalize_quaternions(quaternion)
+    predicted_rot_mat = rot_matrix_from_quat_wxyz(quat_normalized)
     paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
     predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
     decalib_qt_trans_augm = tf.pad(trans_vector, paddings, constant_values=1)
     transform_augm = tf.concat([predicted_rot_mat_augm, decalib_qt_trans_augm], axis=-1)
 
     return transform_augm
+
+# Modified the below method from TF graphics library
+# https://www.tensorflow.org/graphics/api_docs/python/tfg/geometry/transformation/rotation_matrix_3d/from_quaternion
+# The original supported xyzw format but our dataset uses wxyz
+# Input must be a NORMALIZED quaternion
+def rot_matrix_from_quat_wxyz(quaternion):
+    w, x, y, z = tf.unstack(quaternion, axis=-1)
+    tx = 2.0 * x
+    ty = 2.0 * y
+    tz = 2.0 * z
+    twx = tx * w
+    twy = ty * w
+    twz = tz * w
+    txx = tx * x
+    txy = ty * x
+    txz = tz * x
+    tyy = ty * y
+    tyz = tz * y
+    tzz = tz * z
+    matrix = tf.stack((1.0 - (tyy + tzz), txy - twz, txz + twy,
+                      txy + twz, 1.0 - (txx + tzz), tyz - twx,
+                      txz - twy, tyz + twx, 1.0 - (txx + tyy)),
+                     axis=-1)  # pyformat: disable
+    output_shape = tf.concat((tf.shape(input=quaternion)[:-1], (3, 3)), axis=-1)
+    out_matrix = tf.reshape(matrix, shape=output_shape)
+    return out_matrix
+
 
 if __name__ == '__main__': # For debugging.
     quat = tf.constant([[1.0, 2.0, 3.0, 1.0], [0.0, 0.0, 0.0, 1.0]])

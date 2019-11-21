@@ -5,7 +5,7 @@ from keras.layers.advanced_activations import PReLU, LeakyReLU, ELU
 class RunConfig:
     def __init__(self):
         self.lr = 0.002
-        self.epochs = 2
+        self.epochs = 32
         self.batch_size = 16
         self.val_split = 0.1
         self.original_resolution = [900, 1600, 3]
@@ -35,7 +35,7 @@ class RunConfig:
         # self.mid_layer_activations = LeakyReLU
 
         # Data.
-        #Gcloud folders
+        #Google Cloud VM folders
         #self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET/"
         #self.dataset_names = ["nuscenes_01_04_RADNET", "nuscenes_05_RADNET", "nuscenes_06_RADNET","nuscenes_07_RADNET", "nuscenes_08_RADNET"]
 

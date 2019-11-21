@@ -77,13 +77,13 @@ def keras_weighted_quaternion_translation_loss_NUSCENES(alpha):
 
 
 def weighted_quaternion_translation_loss_NUSCENES(y_true, y_pred, alpha):
-    diff = (y_true - y_pred) ** 2
+    #diff = (y_true - y_pred) ** 2
     # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
-    eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1))) + 0.15 * met.pan_error(y_true,
-                                                                                       y_pred)  # + 0.0075 * alpha * met.roll_error(y_true, y_pred)
+    #eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1))) + 0.15 * met.pan_error(y_true,
+           #                                                                            y_pred)  # + 0.0075 * alpha * met.roll_error(y_true, y_pred)
     # eucl_dist = 0.05*met.tilt_error(y_true, y_pred) * 0.9*met.pan_error(y_true, y_pred) + 0.05*met.roll_error(y_true, y_pred)
 
-    return eucl_dist
+    return met.pan_error(y_true, y_pred)
 
 
 def keras_weighted_quaternion_translation_loss(alpha):
@@ -98,8 +98,10 @@ def keras_weighted_quaternion_translation_loss(alpha):
 
 
 def weighted_quaternion_translation_loss(y_true, y_pred, alpha):
-    y_true = y_true[:, :4]
-    diff = (y_true - y_pred) ** 2
+    quat_true = y_true[:, :4]
+    quat_true = qt_ops.normalize_quaternions(quat_true)
+    quat_pred = qt_ops.normalize_quaternions(y_pred) #tf.math.l2_normalize(y_pred)
+    diff = (quat_true - quat_pred) ** 2
     # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
     eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1)))
     return eucl_dist

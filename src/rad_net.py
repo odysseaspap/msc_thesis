@@ -53,7 +53,7 @@ class RadNet:
             # When only cloud_loss is used, model might learn -q instead of q because they represent the same rotation!
             # So, here we check if w<0.0 and in this case we flip the signs
             # The same is performed in DualQuat/transformations.py +1370
-            predicted_decalib_quat = tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), predicted_decalib_quat, dtype="float32")
+            predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x), name="quat")(predicted_decalib_quat)
 
         with tf.name_scope('se3_block'):
             # The below Lambda layers have 0 trainable parameters
@@ -67,7 +67,6 @@ class RadNet:
             k_mat = Input(shape=(3, 4))
             decalib_gt_trans = Input(shape=(3, ))
             # Wrap Spatial Transformer functions in a Lambda layer
-            #print(K.int_shape(predicted_decalib_quat))
             stl_output = Lambda(self._spatial_transformer_layers, name="ST_Layer")([predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans])
             # Separate the outputs using two "identity" Lambda layers with different naming
             # This way, we can use dictionary to map correctly the losses
@@ -128,7 +127,7 @@ class RadNet:
 
         :param input_list: [predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans] =
         [(batch_size, 4, 1), (batch_size, 150, 240, 1), (batch_size, 3, 3), (batch_size, 3, 1)]
-        :return: List with [predicted_depth_map, cloud_pred] : [(batch_size, 150, 240), (batch_size, ?no_points?, 3)]
+        :return: List with [predicted_depth_map, cloud_pred] : [(batch_size, 150, 240), (batch_size, no_points, 3)]
 
         """
         # TODO: Modify the following operations from CalibNet

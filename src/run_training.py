@@ -152,16 +152,16 @@ def train_model(samples_list_train, samples_list_val, model_name):
     # Use a specific loss and metric for each specific output,
     # based on the name of the output Layer
     losses_dic = {
-        'quaternion': loss_fn.keras_weighted_quaternion_translation_loss(run_config.length_error_weight),
+        'quat': loss_fn.keras_weighted_quaternion_translation_loss(run_config.length_error_weight),
         'cloud': loss_fn.keras_photometric_and_3d_pointcloud_loss(model.input[1], model.input[2],
             model.output[1], model.output[2], run_config.photometric_loss_factor, run_config.point_cloud_loss_factor)
     }
     loss_weights_dict = {
-        'quaternion': 0.0,
+        'quat': 0.0,
         'cloud': 1.0
     }
     metrics_dict = {
-        'quaternion': get_metrics()
+        'quat': get_metrics()
     }
     model.compile(loss=losses_dic, loss_weights=loss_weights_dict, optimizer=optimizer, metrics=metrics_dict)
     callback_list = create_callbacks(model_name)
