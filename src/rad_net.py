@@ -53,7 +53,7 @@ class RadNet:
             # When only cloud_loss is used, model might learn -q instead of q because they represent the same rotation!
             # So, here we check if w<0.0 and in this case we flip the signs
             # The same is performed in DualQuat/transformations.py +1370
-            predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x), name="quat_flipped")(predicted_decalib_quat)
+            predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x), name="quat")(predicted_decalib_quat)
 
         with tf.name_scope('se3_block'):
             # The below Lambda layers have 0 trainable parameters
@@ -117,7 +117,7 @@ class RadNet:
             drop_1 = keras.layers.Dropout(self._drop_rate)(fc_1)
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
-            predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="quaternion")(fc_2)
+            predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="quaternion")(fc_2)        
         return predicted_decalib_quat
 
     def _spatial_transformer_layers(self, input_list):
@@ -158,8 +158,7 @@ class RadNet:
     @property
     def model(self):
         return self._model
-
-
+    
 
 from keras.layers import PReLU
 if __name__ == '__main__': # For debugging.

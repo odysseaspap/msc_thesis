@@ -1,5 +1,7 @@
 import tensorflow as tf
 import keras.backend as K
+from tensorflow_graphics.geometry.transformation import quaternion as tfg_quaternion
+
 from util import all_transformer as at3
 from util import quaternion_ops as qt_ops
 from util import model_utils
@@ -105,8 +107,13 @@ def keras_weighted_quaternion_translation_loss(alpha):
 
 
 def weighted_quaternion_translation_loss(y_true, y_pred, alpha):
-    y_true = y_true[:, :4]
-    diff = (y_true - y_pred) ** 2
+    quat_true = y_true[:, :4]
+    quat_true = qt_ops.normalize_quaternions(quat_true)
+    # When only cloud loss is used, output quat is not normalized
+    # So, I have to normalize here or quat_loss will grow larger 
+    quat_pred = qt_ops.normalize_quaternions(y_pred) #tfg_quaternion.normalize(y_pred)
+    
+    diff = (quat_true - quat_pred) ** 2
     # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
     eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1)))
     return eucl_dist
