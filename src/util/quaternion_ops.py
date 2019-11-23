@@ -54,7 +54,7 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     """
     # we use [w, x, y, z] quaternion notation but TF Geometry lib expects [x, y, z, w]
     #quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
-
+    quaternion = tf.Print(quaternion, [quaternion], message="OPS quat:", summarize=4)
     quaternion = tfg_quaternion.normalize(quaternion) #normalize_quaternions(quaternion)
     predicted_rot_mat = rot_matrix_from_quat_wxyz(quaternion)
     paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
@@ -102,6 +102,28 @@ def quat_wxyz_from_euler(angles):
     :param angles: (batch_size, 3)
     :return: quaternion: (batch_size, 4)
     """
+    half_angles = angles / 2.0
+    cos_half_angles = tf.cos(half_angles)
+    sin_half_angles = tf.sin(half_angles)
+
+
+    c1, c2, c3 = tf.unstack(cos_half_angles, axis=-1)
+    s1, s2, s3 = tf.unstack(sin_half_angles, axis=-1)
+    w = c1 * c2 * c3 + s1 * s2 * s3
+    x = -c1 * s2 * s3 + s1 * c2 * c3
+    y = c1 * s2 * c3 + s1 * c2 * s3
+    z = -s1 * s2 * c3 + c1 * c2 * s3
+    return tf.stack((w, x, y, z), axis=-1)
+
+def quat_wxyz_from_yaw(yaw):
+    """
+    Transforms yaw angles in quaternion, using 0.0 for pitch and roll
+    Uses the z-y-x rotation convention (Tait-Bryan angles).
+    :param yaw: (batch_size, 1)
+    :return: quaternion: (batch_size, 4)
+    """
+    paddings = tf.constant([[0, 0], [1, 1]])
+    angles = tf.pad(yaw, paddings, constant_values=0.0)
     half_angles = angles / 2.0
     cos_half_angles = tf.cos(half_angles)
     sin_half_angles = tf.sin(half_angles)
