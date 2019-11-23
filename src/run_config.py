@@ -37,10 +37,10 @@ class RunConfig:
         # Data.
         #Google Cloud VM folders
         #self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET/"
-        #self.dataset_names = ["nuscenes_01_04_RADNET", "nuscenes_05_RADNET", "nuscenes_06_RADNET","nuscenes_07_RADNET", "nuscenes_08_RADNET"]
+        #self.dataset_names = ["nuscenes_01_04_RADNET", "nuscenes_05_RADNET", "nuscenes_06_RADNET","nuscenes_07_RADNET", "nuscenes_08_RADNET", "nuscenes_09_RADNET"]
 
         #Local PC folders
-        self.general_dataset_folder_path = "/home/odysseas/thesis/data/sets/other/nuscenes_RADNET_mini_stored_depth/"
+        self.general_dataset_folder_path = "/home/odysseas/thesis/data/sets/other/nuscenes_mini_RADNET/"
         self.dataset_names = [""]
         # Datasets for testing
         # self.dataset_names = ["mp10_near_bag75-76", "mp10_near_bag77-78"]

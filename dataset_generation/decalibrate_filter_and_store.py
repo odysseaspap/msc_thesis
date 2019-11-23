@@ -56,9 +56,9 @@ debug_circle_size = 2
 
 ORIGINAL_WIDTH = 1600
 ORIGINAL_HEIGHT = 900
-#Each image frame must contain at least 10 radar detections
+#Each image frame must contain at least 5 radar detections
 #in order to be added in the dataset
-REQUIRED_NUM_POINTS = 10
+REQUIRED_NUM_POINTS = 5
 h_gt = None
 counter_for_num_images = 0
 counter_total_correspondences = 0
@@ -164,7 +164,7 @@ def tokens_to_data_pairs(nusc: NuScenes,
         #RADNET expects shape (num_points, 4)
         radar_pcl.points = radar_pcl.points.transpose()
         #radar_pcl.points = radar_pcl.points[:, :3]
-        #radar_pcl.points = radar_pcl.points[radar_pcl.points[:, 0] < depth]
+        radar_pcl.points = radar_pcl.points[radar_pcl.points[:, 0] < depth]
         radar_pcl.points = np.hstack((radar_pcl.points, np.ones((radar_pcl.points.shape[0], 1), dtype=radar_pcl.points.dtype)))
 
         radar_pcl_list.append(radar_pcl)
@@ -380,10 +380,10 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_3Ddist12m_filtered', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/nuscenes_mini_depth_15m_filtered', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
-    parser.add_argument('--depth', default = 300.0, type = float, help='Distance (meters) from radar sensor above which detections are omitted from the dataset')
-    parser.add_argument('--threshold', default = 12, type = float, help='No pairs of points in the resulted dataset will have distance less than this threshold (in meters)')
+    parser.add_argument('--depth', default = 300.0, type = float, help='Distance (meters - e.g. 15) from radar sensor above which detections are omitted from the dataset')
+    parser.add_argument('--threshold', default = 0, type = float, help='No pairs of points in the resulted dataset will have distance less than this threshold (in meters - e.g. 12)')
 
     args = parser.parse_args()
     global static_decalib

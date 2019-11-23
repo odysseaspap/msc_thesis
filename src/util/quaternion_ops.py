@@ -55,8 +55,8 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     # we use [w, x, y, z] quaternion notation but TF Geometry lib expects [x, y, z, w]
     #quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
 
-    quat_normalized = tfg_quaternion.normalize(quaternion) #normalize_quaternions(quaternion)
-    predicted_rot_mat = rot_matrix_from_quat_wxyz(quat_normalized)
+    quaternion = tfg_quaternion.normalize(quaternion) #normalize_quaternions(quaternion)
+    predicted_rot_mat = rot_matrix_from_quat_wxyz(quaternion)
     paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
     predicted_rot_mat_augm = tf.pad(predicted_rot_mat, paddings, constant_values=0)
     decalib_qt_trans_augm = tf.pad(trans_vector, paddings, constant_values=1)
@@ -69,6 +69,11 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
 # The original supported xyzw format but our dataset uses wxyz
 # Input must be a NORMALIZED quaternion
 def rot_matrix_from_quat_wxyz(quaternion):
+    """
+    Transforms quaternion to the corresponding rotation matrix
+    :param quaternion: (batch_size, 4)
+    :return: rot_matrix: (batch_size, 3, 3)
+    """
     w, x, y, z = tf.unstack(quaternion, axis=-1)
     tx = 2.0 * x
     ty = 2.0 * y
@@ -89,6 +94,27 @@ def rot_matrix_from_quat_wxyz(quaternion):
     output_shape = tf.concat((tf.shape(input=quaternion)[:-1], (3, 3)), axis=-1)
     out_matrix = tf.reshape(matrix, shape=output_shape)
     return out_matrix
+
+def quat_wxyz_from_euler(angles):
+    """
+    Transforms euler angles in quaternion
+    Uses the z-y-x rotation convention (Tait-Bryan angles).
+    :param angles: (batch_size, 3)
+    :return: quaternion: (batch_size, 4)
+    """
+    half_angles = angles / 2.0
+    cos_half_angles = tf.cos(half_angles)
+    sin_half_angles = tf.sin(half_angles)
+
+
+    c1, c2, c3 = tf.unstack(cos_half_angles, axis=-1)
+    s1, s2, s3 = tf.unstack(sin_half_angles, axis=-1)
+    w = c1 * c2 * c3 + s1 * s2 * s3
+    x = -c1 * s2 * s3 + s1 * c2 * c3
+    y = c1 * s2 * c3 + s1 * c2 * s3
+    z = -s1 * s2 * c3 + c1 * c2 * s3
+    return tf.stack((w, x, y, z), axis=-1)
+
 
 
 if __name__ == '__main__': # For debugging.
