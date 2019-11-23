@@ -54,6 +54,7 @@ class RadNet:
             # So, here we check if w<0.0 and in this case we flip the signs
             # The same is performed in DualQuat/transformations.py +1370
             predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x), name="quat")(predicted_decalib_quat)
+            #predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x:x *tf.constant([1.0, 0.0, 1.0, 0.0]), x), name="quat")(predicted_decalib_quat)
 
         with tf.name_scope('se3_block'):
             # The below Lambda layers have 0 trainable parameters

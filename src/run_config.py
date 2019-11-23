@@ -36,7 +36,7 @@ class RunConfig:
 
         # Data.
         #Gcloud folders
-        self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET/"
+        self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET_onlyYAW/"
         self.dataset_names = ["nuscenes_01_04_RADNET","nuscenes_05_RADNET","nuscenes_06_RADNET","nuscenes_07_RADNET","nuscenes_08_RADNET","nuscenes_09_RADNET"]
 
         #Local PC folders

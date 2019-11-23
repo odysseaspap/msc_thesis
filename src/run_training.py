@@ -93,9 +93,9 @@ def create_callbacks(model_name):
     callbacks = []
     # checkpoint = ModelCheckpoint(experiments_path + model_name + '.h5', monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=False, mode='auto', period=1) # Saves best model.
     # callbacks.append(checkpoint)
-    reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=5, min_lr=0.0, verbose=1, mode='min', min_delta=1e-5)
+    reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=0.0, verbose=1, mode='min', min_delta=1e-5)
     callbacks.append(reduce_lr)
-    earls_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-5, patience=10, verbose=1, mode='min', restore_best_weights=True)
+    earls_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=1e-5, patience=5, verbose=1, mode='min', restore_best_weights=True)
     callbacks.append(earls_stopping)
     return callbacks
 
@@ -167,7 +167,7 @@ def train_model(samples_list_train, samples_list_val, model_name):
     model.compile(loss=losses_dic, loss_weights=loss_weights_dict, optimizer=optimizer, metrics=metrics_dict)
     callback_list = create_callbacks(model_name)
     history = model.fit_generator(generator=training_generator, validation_data=validation_generator,
-                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6, verbose = 1)
+                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6, verbose = 2)
     # Generate training visualizations.
     model_output_folder = experiments_path + model_name + '/'
     model.save(experiments_path + model_name + '.h5')
