@@ -79,7 +79,7 @@ def compute_example_predictions(model, sample_file_names, num_prints):
         input_2 = np.expand_dims(input_2, axis=0)
         input_3 = np.expand_dims(input_3, axis=0)
         input_4 = np.expand_dims(input_4, axis=0)
-        print("Label: " + str(label))
+        print("Label: " + str(label[:4]))
         output = model.predict([input_1, input_2, input_3, input_4])
         # Normalize quaternions.
         quats = output[0]
@@ -154,7 +154,7 @@ def train_model(samples_list_train, samples_list_val, model_name):
     model.compile(loss=losses_dic, loss_weights=loss_weights_dict, optimizer=optimizer, metrics=metrics_dict)
     callback_list = create_callbacks(model_name)
     history = model.fit_generator(generator=training_generator, validation_data=validation_generator,
-                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6, verbose=1)
+                                  epochs=run_config.epochs, callbacks=callback_list, use_multiprocessing=True, workers=6, verbose=2)
     # Generate training visualizations.
     model_output_folder = experiments_path + model_name + '/'
     model.save(experiments_path + model_name + '.h5')
@@ -193,10 +193,10 @@ def start_training(samples_list):
     print("Reprojecting corrections of {}...".format(model_1_name))
     start_time = time()
     # Generate new training data for model_2
-    output_path_train = experiments_path + model_1_name + "/aug_samples_train/"
-    output_path_val = experiments_path + model_1_name + "/aug_samples_val/"
-    print("Reprojecting and storing training data")
-    reprojection_manager.compute_and_save_corrected_projections_labels(samples_list_train, model_1, output_path_train)
+    #output_path_train = experiments_path + model_1_name + "/aug_samples_train/"
+    #output_path_val = experiments_path + model_1_name + "/aug_samples_val/"
+    #print("Reprojecting and storing training data")
+    #reprojection_manager.compute_and_save_corrected_projections_labels(samples_list_train, model_1, output_path_train)
     print("Reprojecting and storing validation data")
     #print(K.int_shape(decalibs))
     #print(K.int_shape(Ks))
@@ -206,11 +206,11 @@ def start_training(samples_list):
     #print(K.int_shape(k_mats))
     projections_val_1, labels_val_1 = reprojection_manager_batch.compute_projections_and_labels([images_val, projections_decalibrated_val, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
     # save augmented validation samples
-    if not os.path.exists(output_path_val):
-        os.makedirs(output_path_val)
+    #if not os.path.exists(output_path_val):
+    #    os.makedirs(output_path_val)
 
-    for i, file_path in enumerate(samples_list_val):
-        dl.save_augmented_projection_sample(output_path_val + str(file_path).split("/")[-1], projections_val_1[i,], labels_val_1[i,])
+    #for i, file_path in enumerate(samples_list_val):
+    #    dl.save_augmented_projection_sample(output_path_val + str(file_path).split("/")[-1], projections_val_1[i,], labels_val_1[i,])
 
     print("Reprojection time: " + str(time() - start_time))
 
@@ -234,11 +234,11 @@ def start_training(samples_list):
     del Ks
     start_time = time()
     # Delete augmented samples from training model 1
-    try:
-        shutil.rmtree(output_path_train)
-        shutil.rmtree(output_path_val)
-    except OSError as e:
-        print("Error: %s - %s." % (e.filename, e.strerror))
+    #try:
+    #    shutil.rmtree(output_path_train)
+    #    shutil.rmtree(output_path_val)
+    #except OSError as e:
+    #    print("Error: %s - %s." % (e.filename, e.strerror))
 
     # Visualize results of first model.
     print("Visualizing results...")

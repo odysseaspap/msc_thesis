@@ -53,7 +53,6 @@ class RadNet:
             # When only cloud_loss is used, model might learn -q instead of q because they represent the same rotation!
             # So, here we check if w<0.0 and in this case we flip the signs
             # The same is performed in DualQuat/transformations.py +1370
-            #TODO: Not needed in only_yaw case??
             #predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x), name="quat")(predicted_decalib_quat)
 
         with tf.name_scope('se3_block'):
@@ -91,12 +90,6 @@ class RadNet:
     def _load_mobilenet(self, input_tensor):
         mobilenet_model = mobilenet.MobileNet(input_tensor=input_tensor, weights='imagenet')#, alpha=0.75)
         cropped_model = Model(inputs=mobilenet_model.input, outputs=mobilenet_model.get_layer(index=20).output)
-        #mobilenet_model.layers = mobilenet_model.layers[0:22] # Crop model.
-        #mobilenet_model.outputs = [mobilenet_model.layers[-1].output]
-        # mobilenet_model.outputs = [mobilenet_model.layers[21].output]
-        # mobilenet_model.layers[0].inbound_nodes = [] # Cut inbound node connections.
-        # mobilenet_model.layers[21].outbound_nodes = [] # Cut outbound node connections.
-        # #mobilenet_model.layers[-1].outbound_nodes = [] # Cut outbound node connections.
         cropped_model.layers[0].inbound_nodes = []
         cropped_model.layers[-1].outbound_nodes = []
         return cropped_model
@@ -132,13 +125,11 @@ class RadNet:
         :return: List with [predicted_depth_map, cloud_pred] : [(batch_size, 150, 240), (batch_size, no_points, 3)]
 
         """
-        # TODO: Modify the following operations from CalibNet
         predicted_decalib_quat = input_list[0]
         radar_input = input_list[1]
         k_mat = input_list[2]
         decalib_gt_trans = input_list[3]
 
-        #k_mat_fixed = tf.constant([[1260.8474446004698, 0.0, 807.968244525554], [0.0, 1260.8474446004698, 495.3344268742088], [0.0, 0.0, 1.0]])
         # se(3) -> SE(3) (for the whole batch):
         # Create augmented transform matrix from predicted quaternion and ground truth translation vector
         batch_size = tf.shape(radar_input)[0]
@@ -148,9 +139,6 @@ class RadNet:
         # transforms depth maps by the predicted transformation
         depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
 
-        #depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
-        # transforms depth maps by the expected transformation
-        # depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
 
         return [depth_maps_predicted, cloud_pred]
 

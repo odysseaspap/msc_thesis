@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow_graphics.geometry.transformation import quaternion as tfg_quaternion
 from tensorflow_graphics.geometry.transformation import rotation_matrix_3d as tfg_rot_mat
+import math
 
 def split_dual_quaternions(quat):
     """
@@ -54,7 +55,7 @@ def transform_from_quat_and_trans(quaternion, trans_vector):
     """
     # we use [w, x, y, z] quaternion notation but TF Geometry lib expects [x, y, z, w]
     #quaternion = tf.concat([quaternion[:, 1:], tf.expand_dims(quaternion[:, 0], axis=1)], axis=-1)
-    quaternion = tf.Print(quaternion, [quaternion], message="OPS quat:", summarize=4)
+    
     quaternion = tfg_quaternion.normalize(quaternion) #normalize_quaternions(quaternion)
     predicted_rot_mat = rot_matrix_from_quat_wxyz(quaternion)
     paddings = tf.constant([[0, 0], [0, 1], [0, 0]])
@@ -122,6 +123,8 @@ def quat_wxyz_from_yaw(yaw):
     :param yaw: (batch_size, 1)
     :return: quaternion: (batch_size, 4)
     """
+    # Transform yaw from degrees to radians
+    yaw = yaw * math.pi/180.0  
     paddings = tf.constant([[0, 0], [1, 1]])
     angles = tf.pad(yaw, paddings, constant_values=0.0)
     half_angles = angles / 2.0
