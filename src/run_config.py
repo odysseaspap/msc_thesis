@@ -8,7 +8,7 @@ class RunConfig:
         self.epochs = 32
         self.batch_size = 16
         self.val_split = 0.1
-        self.original_resolution = [900, 1600, 3]
+        self.original_resolution = [900, 1600, 3] #[1200, 1920, 3]
         self.input_shape = [150, 240, 3]
 
         # Increasing the inverse depth of the radar projections with this factor
@@ -39,15 +39,18 @@ class RunConfig:
         self.general_dataset_folder_path = "/home/jupyter/thesis/data/sets/nuscenes_RADNET_onlyYAW/"
         self.dataset_names = ["nuscenes_01_04_RADNET","nuscenes_05_RADNET","nuscenes_06_RADNET","nuscenes_07_RADNET","nuscenes_08_RADNET","nuscenes_09_RADNET"]
 
+        # Providentia data
+        #self.general_dataset_folder_path = "/home/jupyter/thesis/data/providentia/"
+        #self.dataset_names = ["mp10_near_bag_00_30","mp10_near_bag_31_40","mp10_near_bag_41_50","mp10_near_bag_51_60","mp10_near_bag_61_70","mp10_near_bag_76_78"]
+        
         #Local PC folders
         #self.general_dataset_folder_path = "/home/odysseas/thesis/data/sets/other/nuscenes_RADNET_mini_stored_depth/"
         #self.dataset_names = [""]
+        
         # Datasets for testing
-        # self.dataset_names = ["mp10_near_bag75-76", "mp10_near_bag77-78"]
-        # self.dataset_names = ["mp09_near_bag00-01_opt", "mp09_near_bag02-03_opt", "mp09_near_bag04-05_opt"]
-        # self.dataset_names = ["mp10_near_bag75-76_static_8"]
-        # self.dataset_names = ["mp10_near_bag_b_02-03", "mp10_near_bag_b_04-05", "mp10_near_bag_b_06-07"]
-        # self.dataset_names = ["s40_n_cam_near_rad_frs_bag00"]
+        # self.dataset_names = ["mp10_near_bag_71-75"]
+        # self.dataset_names = ["nuscenes_10_RADNET"]
+
         self.dataset_paths = []
         for dataset in self.dataset_names:
             self.dataset_paths.append(str(self.general_dataset_folder_path + dataset + "/samples/"))

@@ -53,8 +53,10 @@ class RadNet:
             # When only cloud_loss is used, model might learn -q instead of q because they represent the same rotation!
             # So, here we check if w<0.0 and in this case we flip the signs
             # The same is performed in DualQuat/transformations.py +1370
-            predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x), name="quat")(predicted_decalib_quat)
-            #predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x:x *tf.constant([1.0, 0.0, 1.0, 0.0]), x), name="quat")(predicted_decalib_quat)
+            predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x: (tf.where(x[0] < 0.0, tf.negative(x), x)), x))(predicted_decalib_quat)
+            # The following can be used when training with the the onlyYAW dataset
+            # Set pitch and roll components of quaternion to zero since they are not relevant in training - minor improvement
+            predicted_decalib_quat = Lambda(lambda x: tf.map_fn(lambda x:x *tf.constant([1.0, 0.0, 1.0, 0.0]), x), name="quat")(predicted_decalib_quat)
 
         with tf.name_scope('se3_block'):
             # The below Lambda layers have 0 trainable parameters

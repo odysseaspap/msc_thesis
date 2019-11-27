@@ -53,18 +53,19 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     #cloud_loss = model_utils.get_cd_loss(cloud_pred, cloud_exp)
 
     # Average of squared distance
-    cloud_loss = tf.reduce_sum((cloud_pred - cloud_exp) ** 2, axis=-1)
+    cloud_loss = tf.reduce_sum((cloud_pred - cloud_exp) ** 2, axis=-1) 
     cloud_loss = tf.reduce_mean(cloud_loss)
-    
+    #x_axis_loss =  tf.reduce_sum((cloud_pred[:,:,0] - cloud_exp[:,:,0]) ** 2, axis=-1)
+    #x_axis_loss = tf.reduce_mean(x_axis_loss)
     #Euclidean distance loss
     #cloud_loss = tf.reduce_sum((cloud_pred - cloud_exp) ** 2, axis=-1)
     #cloud_loss = tf.reduce_mean(tf.sqrt(cloud_loss))
     
-    # final loss term
+    # final loss termi
     #predicted_loss_train = alpha * photometric_loss + beta * cloud_loss
     #predicted_loss_train = cloud_loss
 
-    return cloud_loss
+    return cloud_loss #+3* x_axis_loss 
 
 
 
@@ -107,13 +108,13 @@ def keras_weighted_quaternion_translation_loss(alpha):
 
 
 def weighted_quaternion_translation_loss(y_true, y_pred, alpha):
-    quat_true = y_true[:, :4]
-    quat_true = qt_ops.normalize_quaternions(quat_true)
+    y_true = y_true[:, :4]
+    y_true = qt_ops.normalize_quaternions(y_true)
     # When only cloud loss is used, output quat is not normalized
     # So, I have to normalize here or quat_loss will grow larger 
-    quat_pred = qt_ops.normalize_quaternions(y_pred) #tfg_quaternion.normalize(y_pred)
+    y_pred = qt_ops.normalize_quaternions(y_pred) #tfg_quaternion.normalize(y_pred)
     
-    diff = (quat_true - quat_pred) ** 2
+    diff = (y_true - y_pred) ** 2
     # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
     eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1)))
     return eucl_dist
