@@ -325,14 +325,14 @@ def save_run_params_in_file():
                 run_param_file.write(attr + ': ' +  str(value) + '\n')
 
 def load_models(models_path):
-    model_1 = load_model(os.path.join(models_path, model_1_name + '.h5'), compile=False)
-    model_2 = load_model(os.path.join(models_path, model_2_name + '.h5'), compile=False)
-    # model_1 = RadNet(run_config.input_shape)
-    # model_2 = RadNet(run_config.input_shape)
-    # model_1.model.load_weights(os.path.join(models_path, model_1_name + '.h5'))
-    # model_2.model.load_weights(os.path.join(models_path, model_2_name + '.h5'))
-    # return model_1.model, model_2.model
-    return model_1, model_2
+    #model_1 = load_model(os.path.join(models_path, model_1_name + '.h5'), compile=False)
+    #model_2 = load_model(os.path.join(models_path, model_2_name + '.h5'), compile=False)
+    model_1 = RadNet(run_config.input_shape)
+    model_2 = RadNet(run_config.input_shape)
+    model_1.model.load_weights(os.path.join(models_path, model_1_name + '.h5'))
+    model_2.model.load_weights(os.path.join(models_path, model_2_name + '.h5'))
+    return model_1.model, model_2.model
+    #return model_1, model_2
 
 def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     # Initialize models.
@@ -356,7 +356,7 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
         projections_2, labels_2 = reprojection_manager.compute_projections_and_labels_static_decalib([images, projections_1, Ks, trans_labels_1], labels_1, radar_detections, H_gts, Ks, dims, model_2)
     else:
         projections_1, labels_1 = reprojection_manager_batch.compute_projections_and_labels([images, projections_decalib, Ks, trans_labels], decalibs, radar_detections, H_gts, Ks, model_1)
-        trans_labels_1 = labels_1[:, 4:]
+        trans_labels_1 = trans_labels #_1[:, 4:]
         projections_2, labels_2 = reprojection_manager_batch.compute_projections_and_labels([images, projections_1, Ks, trans_labels_1], labels_1, radar_detections, H_gts, Ks, model_2)
 
     print("Reprojection time: " + str(time() - start_time))
@@ -371,7 +371,7 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     pv.print_angular_errors(labels_2)
     print("Generating corrected projections...")
     pv.create_paper_plots(experiments_path, projections_decalib, labels_2, decalibs)
-    visualize_corrected_projections(images, projections_groundtruth, projections_decalib, projections_1, projections_2)
+    visualize_corrected_projections(images[:200], projections_groundtruth[:200], projections_decalib[:200], projections_1[:200], projections_2[:200])
     print("Plotting time: " + str(time() - start_time))
 
 def cross_evaluate_models_static_decalib(models_path, samples_list):

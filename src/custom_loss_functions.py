@@ -4,7 +4,7 @@ from tensorflow_graphics.geometry.transformation import quaternion as tfg_quater
 
 from util import all_transformer as at3
 from util import quaternion_ops as qt_ops
-from util import model_utils
+#from util import model_utils
 from util import metrics as met
 
 def keras_photometric_and_3d_pointcloud_loss(radar_input, k_mat, depth_maps_predicted, cloud_pred, alpha = 1.0, beta = 1.0):
@@ -61,7 +61,7 @@ def photometric_and_3d_pointcloud_loss(y_true, y_pred, radar_input, k_mat, depth
     #cloud_loss = tf.reduce_sum((cloud_pred - cloud_exp) ** 2, axis=-1)
     #cloud_loss = tf.reduce_mean(tf.sqrt(cloud_loss))
     
-    # final loss termi
+    # final loss term
     #predicted_loss_train = alpha * photometric_loss + beta * cloud_loss
     #predicted_loss_train = cloud_loss
 

@@ -308,14 +308,14 @@ def save_run_params_in_file():
                 run_param_file.write(attr + ': ' +  str(value) + '\n')
 
 def load_models(models_path):
-    model_1 = load_model(os.path.join(models_path, model_1_name + '.h5'), compile=False)
+    #model_1 = load_model(os.path.join(models_path, model_1_name + '.h5'), compile=False)
     #model_2 = load_model(os.path.join(models_path, model_2_name + '.h5'), compile=False)
-    # model_1 = RadNet(run_config.input_shape)
+    model_1 = RadNet(run_config.input_shape)
     # model_2 = RadNet(run_config.input_shape)
-    # model_1.model.load_weights(os.path.join(models_path, model_1_name + '.h5'))
+    model_1.model.load_weights(os.path.join(models_path, model_1_name + '.h5'))
     # model_2.model.load_weights(os.path.join(models_path, model_2_name + '.h5'))
     # return model_1.model, model_2.model
-    return model_1 #, model_2
+    return model_1.model #, model_2
 
 def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     # Initialize models.
@@ -352,7 +352,7 @@ def cross_evaluate_models(models_path, samples_list, static_decalib=False):
     #pv.print_angular_errors(labels_2)
     print("Generating corrected projections...")
     pv.create_paper_plots(experiments_path, projections_decalib, labels_1, decalibs)
-    visualize_corrected_projections(images, projections_groundtruth, projections_decalib, projections_1) # projections_2)
+    visualize_corrected_projections(images[:200], projections_groundtruth[:200], projections_decalib[:200], projections_1[:200]) # projections_2)
     print("Plotting time: " + str(time() - start_time))
 
 def cross_evaluate_models_static_decalib(models_path, samples_list):

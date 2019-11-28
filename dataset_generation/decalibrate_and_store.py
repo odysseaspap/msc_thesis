@@ -91,12 +91,12 @@ def load_keyframe_rad_cam_data(nusc: NuScenes) -> (List[str], List[str], List[st
         start_sample_rec = nusc.get('sample', scene_rec['first_sample_token'])
         #sample_name = scene_name + str(start_sample_rec["timestamp"])
 
-        cam_front_sd_rec = nusc.get('sample_data', start_sample_rec['data']['CAM_FRONT_RIGHT'])
-        rad_front_sd_rec = nusc.get('sample_data', start_sample_rec['data']['RADAR_FRONT_RIGHT'])
+        cam_front_sd_rec = nusc.get('sample_data', start_sample_rec['data']['CAM_FRONT'])
+        rad_front_sd_rec = nusc.get('sample_data', start_sample_rec['data']['RADAR_FRONT'])
 
         cur_cam_front_sd_rec = cam_front_sd_rec
         cur_rad_front_sd_rec = rad_front_sd_rec
-        sample_name = cur_cam_front_sd_rec["filename"].replace('samples/CAM_FRONT_RIGHT/', '').replace('.jpg', '')
+        sample_name = cur_cam_front_sd_rec["filename"].replace('samples/CAM_FRONT/', '').replace('.jpg', '')
         #Append the first sample_name, cam and rad sample_data tokens in lists
         sample_names.append(sample_name)
         cam_sd_tokens.append(cur_cam_front_sd_rec['token'])
@@ -105,7 +105,7 @@ def load_keyframe_rad_cam_data(nusc: NuScenes) -> (List[str], List[str], List[st
         #Append all keyframe sample_names and camera sample tokens in list
         while cur_cam_front_sd_rec['next'] != '':
             cur_cam_front_sd_rec = nusc.get('sample_data', cur_cam_front_sd_rec['next'])
-            sample_name = cur_cam_front_sd_rec["filename"].replace('samples/CAM_FRONT_RIGHT/', '').replace('.jpg', '')
+            sample_name = cur_cam_front_sd_rec["filename"].replace('samples/CAM_FRONT/', '').replace('.jpg', '')
             if cur_cam_front_sd_rec['is_key_frame']:
                 sample_names.append(sample_name)
                 cam_sd_tokens.append(cur_cam_front_sd_rec['token'])
@@ -371,7 +371,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/jupyter/thesis/data/sets/nuscenes_RADNET_FRONT_RIGHT/nuscenes_01_04_RADNET', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/jupyter/thesis/data/sets/nuscenes_RADNET/nuscenes_10_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()
