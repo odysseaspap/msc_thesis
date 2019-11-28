@@ -205,6 +205,19 @@ def comp_uv_invdepth(K, h_gt, decalib, point):
     Compute pixels coordinates and inverted radar depth.
     '''
     # Project on image plane with: z * (u, v, 1)^T = K * H * x
+    # Code to check how each de-calibration(roll - pitch - yaw) affects the radar points
+    # in camera coordinate frame!
+    """
+    print("Radar point coordinates.......")
+    print([point[0], point[1], point[2], point[3]])
+    print("Camera frame coordinates....")
+    point_cam_frame = np.matmul(h_gt, point.transpose())
+    print([point_cam_frame[0], point_cam_frame[1], point_cam_frame[2], point_cam_frame[3]])
+    print("Camera frame coordinates decalibrated....")
+    point_cam_frame_dec = np.matmul(decalib, point_cam_frame.transpose())
+    print([point_cam_frame_dec[0], point_cam_frame_dec[1], point_cam_frame_dec[2], point_cam_frame_dec[3]])
+    input("Press Enter to Continue....")
+    """
     tmp = np.matmul(K, decalib)
     tmp = np.matmul(tmp, h_gt)
     point = np.matmul(tmp, point.transpose())
@@ -371,7 +384,7 @@ def main():
     # Read input parameters
     parser = argparse.ArgumentParser(description='Load nuScenes dataset, decalibrate radar - camera calibration and store samples in RADNET format',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/other/nuscenes_mini_RADNET_depth', type=str, help='Output folder')
+    parser.add_argument('--out_dir', default='/home/odysseas/thesis/data/sets/other/nuscenes_mini_RADNET', type=str, help='Output folder')
     parser.add_argument('--static_decalib', default = False, type = bool, help='Option for static decalibration between all samples')
 
     args = parser.parse_args()

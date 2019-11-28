@@ -98,10 +98,10 @@ def keras_weighted_quaternion_translation_loss(alpha):
 
 
 def weighted_quaternion_translation_loss(y_true, y_pred, alpha):
-    quat_true = y_true[:, :4]
-    quat_true = qt_ops.normalize_quaternions(quat_true)
-    quat_pred = qt_ops.normalize_quaternions(y_pred) #tf.math.l2_normalize(y_pred)
-    diff = (quat_true - quat_pred) ** 2
+    y_true = y_true[:, :4]
+    y_true = qt_ops.normalize_quaternions(y_true)
+    y_pred = qt_ops.normalize_quaternions(y_pred) #tf.math.l2_normalize(y_pred)
+    diff = (y_true - y_pred) ** 2
     # mean_squared_error = tf.reduce_mean(tf.reduce_sum(diff, 1))
     eucl_dist = tf.reduce_mean(tf.sqrt(tf.reduce_sum(diff, 1)))
     return eucl_dist
