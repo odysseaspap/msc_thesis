@@ -28,8 +28,8 @@ learning model for the rotational calibration between radar and camera sensors. 
 state of the art radar-camera calibration neural network by using spatial transformer layers which allow it to utilize 
 the geometric computer vision nature of the extrinsic calibration problem. The first evaluation was performed with data 
 recorded from camera and radar sensors installed in the gantry bridges of the German A9 highway, an infrastructure 
-created for the research project Providentia. The results show calibration accuracy under 1 degree for all  
-rotational axes, which surpasses the current state of the art model. In addition, it is demonstrated that the proposed
+created for the research project Providentia. The results show calibration accuracy under 1 degree for all rotational
+axes, which surpasses the current state of the art model. In addition, it is demonstrated that the proposed
 network was able to successfully calibrate the tilt and roll angles on the nuScenes dataset, where it achieved a mean 
 error of 0.29 degrees in tilt and 0.82 degress in roll angle. However, in this dataset, which is collected from 
 autonomous vehicle sensors, the pan error is more challenging to eliminate. This is due to the fact that most radar 
