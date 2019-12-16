@@ -50,9 +50,8 @@ def pad_and_sparsify_cloud(S):
     """
 
     with tf.device('/cpu:0'):
-        # This method causes 3D loss function to be nan when the point_limit
-        # set here is larger than the no_points in a file
-        # In addition, all point_clouds returned from this file must have the same no_points
+
+        # All point_clouds returned from this file must have the same no_points
         # since they are created in a map_fn and will be concatenated in a single Tensor!
         # So, this method sets the point_limit to 125 and pads the pointcloud S with zero - points
         # [0.0, 0.0, 0.0] so that no_points_padded = 125
@@ -104,7 +103,6 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     # flatten
     x_t_flat = tf.reshape(x_t, [1, -1])
     y_t_flat = tf.reshape(y_t, [1, -1])
-    # TODO: Depth values here are correct - all positive and logical distances from sensor
     ZZ = tf.reshape(depth_img, [-1])
 
     zeros_target = tf.zeros_like(ZZ)
@@ -120,7 +118,6 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     projection_grid_3d = tf.matmul(tf.matrix_inverse(tf_K_mat_scaled), sampling_grid_2d_sparse * ZZ_saved)
 
     homog_points_3d = tf.concat([projection_grid_3d, ones_saved], 0)
-    # print(K.int_shape(homog_points_3d))
     # Remove augmentation line ([0.0, 0.0, 0.0, 1.0]) from transform matrix
     # final_transformation_matrix shape = (3,4)
     final_transformation_matrix = transformation_matrix[:3, :]
@@ -129,13 +126,6 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
     points_2d = tf.matmul(tf_K_mat_scaled, warped_sampling_grid[:3, :])
 
     Z = points_2d[2, :]
-    # Z = tf.Print(Z, [Z], message="Z tensor before reciprocal: ", summarize=36)
-    # depth_img pixel values hold the inverse depth
-    # here we need the depth information, se we inverse
-    # each value - At this point Z does not include any zero
-    # values (removed with tf.boolean_mask above)
-    # Z = tf.math.reciprocal(Z)
-    # Z = tf.Print(Z, [Z], message="Z tensor AFTER reciprocal: ", summarize=36)
     x_dash_pred = points_2d[0, :]
     y_dash_pred = points_2d[1, :]
     # point_cloud shape = (no_radar_points, 3)
@@ -143,7 +133,7 @@ def _3D_meshgrid_batchwise_diff(height, width, depth_img, transformation_matrix,
 
     # Even though radar point cloud is already sparse,
     # we use the below to allow the direct shape inference of the pointclouds by Keras:
-    # (batch_size, no_points, 3)
+    # (batch_size, no_points=125, 3)
     sparse_point_cloud = pad_and_sparsify_cloud(point_cloud)
 
     x = tf.transpose(points_2d[0, :] / Z)
