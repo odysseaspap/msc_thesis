@@ -4,7 +4,8 @@ tempCodeRunner*
 build
 devel
 *.pyc
-*.png
+model_plot.png
+dataset_utils/Radar_Depths_Histogram.png
 experiments*
 *.dat
 .idea

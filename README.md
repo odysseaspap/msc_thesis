@@ -1,5 +1,5 @@
 ### RadNet++: *Geometric supervision model for rotational radar-camera calibration in an autonomous vehicle setup.*
-Created by Odysseas Papanikolaou from Technical University of Munich.
+Created by Odysseas Papanikolaou from Technical University of Munich. Contact: odysseaspapan@gmail.com
 
 ![network_architecture](https://github.com/odysseaspap/msc_thesis/blob/master/Figures/RadNet++.png)
 
@@ -72,5 +72,3 @@ To train a model and see its calibration accuracy on nuScenes, first define the 
 
         python run_training.py
 
-### License
-Our code is released under MIT License (see LICENSE file for details).
