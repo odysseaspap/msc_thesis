@@ -201,18 +201,16 @@ def invert_homogeneous_matrix(mat):
     return mat_inverse
 
 def comp_uv_depth(K, h_gt, decalib, point):
-    '''
+    """
     Compute pixels coordinates and inverted radar depth.
-    '''
+    """
     # Project on image plane with: z * (u, v, 1)^T = K * H * x
     tmp = np.matmul(K, decalib)
     tmp = np.matmul(tmp, h_gt)
     point = np.matmul(tmp, point.transpose())
     if point[2] != 0:
-        # return np.array([int(point[0]/point[2]), int(point[1]/point[2]), 1./point[2]])
         #return [point[0]/point[2], point[1]/point[2], 1./point[2]]
         return [point[0] / point[2], point[1] / point[2], point[2]]
-
     else:
         return None
 
@@ -227,7 +225,10 @@ def create_and_store_samples(image_radar_pairs: List,
                              sample_names: List,
                              rad_to_cam_calibration_matrices: List,
                              cam_intrinsics: List ):
-
+    """
+    Creates a training sample for each pair of image and radar data by projecting
+    the radar detections on the RGB image.
+    """
     global counter_total_correspondences
     global counter_for_num_images
     #global received_rgb_images
@@ -323,6 +324,9 @@ def create_and_store_samples(image_radar_pairs: List,
 
 
 def store_sample(sample_name, image, radar_detections, projection, projection_decalib, decalib, h_gt, K):
+    """
+    Saves a new sample as npz array with the corresponding camera, radar and calibration data necessary for training
+    """
     try:
         print(" *** Trying to convert to numpy *** ")
         image = np.array(image)
