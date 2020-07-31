@@ -5,7 +5,7 @@ from keras import backend as K, optimizers
 from keras.callbacks import ModelCheckpoint, Callback
 from keras.layers import Dense, Input, Flatten, MaxPooling2D, Conv2D, Lambda
 from keras.layers import concatenate
-from keras.models import Model, load_model  # basic class for specifying and training a neural network
+from keras.models import Model, load_model
 #from keras.utils import plot_model
 from scipy import ndimage
 from keras.utils.vis_utils import plot_model
@@ -84,24 +84,21 @@ class RadNet:
         pretrained_out = self._pretrained_block(rgb_input)
         nin_1 = MlpConv(pretrained_out, filter_maps=16, kernel_size=(5, 5), activation=self._mid_layer_activation_type, kernel_initializer=self._weight_init, bias_initializer=self._bias_init)
         nin_2 = MlpConv(nin_1.output, filter_maps=16, kernel_size=(5, 5), activation=self._mid_layer_activation_type, kernel_initializer=self._weight_init, bias_initializer=self._bias_init)
+        
         return nin_2.output
 
     def _pretrained_block(self, rgb_input):
         rgb_mobile = self._load_mobilenet(rgb_input)
         rgb_mobile_out = rgb_mobile.output
+        
         return rgb_mobile_out
 
     def _load_mobilenet(self, input_tensor):
         mobilenet_model = mobilenet.MobileNet(input_tensor=input_tensor, weights='imagenet')#, alpha=0.75)
         cropped_model = Model(inputs=mobilenet_model.input, outputs=mobilenet_model.get_layer(index=20).output)
-        #mobilenet_model.layers = mobilenet_model.layers[0:22] # Crop model.
-        #mobilenet_model.outputs = [mobilenet_model.layers[-1].output]
-        # mobilenet_model.outputs = [mobilenet_model.layers[21].output]
-        # mobilenet_model.layers[0].inbound_nodes = [] # Cut inbound node connections.
-        # mobilenet_model.layers[21].outbound_nodes = [] # Cut outbound node connections.
-        # #mobilenet_model.layers[-1].outbound_nodes = [] # Cut outbound node connections.
         cropped_model.layers[0].inbound_nodes = []
         cropped_model.layers[-1].outbound_nodes = []
+        
         return cropped_model
 
     def _calibration_block(self, input_rgb, input_radar):
@@ -121,6 +118,7 @@ class RadNet:
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
             predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init, name="quaternion")(fc_2)        
+        
         return predicted_decalib_quat
 
     def _spatial_transformer_layers(self, input_list):
@@ -134,16 +132,11 @@ class RadNet:
         :return: List with [predicted_depth_map, cloud_pred] : [(batch_size, 150, 240), (batch_size, ?no_points?, 3)]
 
         """
-        # TODO: Modify the following operations from CalibNet
         predicted_decalib_quat = input_list[0]
-        #print("Model output quat: ")
-        #predicted_decalib_quat = tf.Print(predicted_decalib_quat, [predicted_decalib_quat], summarize=10)
         radar_input = input_list[1]
         k_mat = input_list[2]
         decalib_gt_trans = input_list[3]
 
-        #k_mat_fixed = tf.constant([[1260.8474446004698, 0.0, 807.968244525554], [0.0, 1260.8474446004698, 495.3344268742088], [0.0, 0.0, 1.0]])
-        # se(3) -> SE(3) (for the whole batch):
         # Create augmented transform matrix from predicted quaternion and ground truth translation vector
         batch_size = tf.shape(radar_input)[0]
         decalib_gt_trans = tf.reshape(decalib_gt_trans, (batch_size, 3, 1))
