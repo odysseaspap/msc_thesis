@@ -67,24 +67,21 @@ class RadNet:
         pretrained_out = self._pretrained_block(rgb_input)
         nin_1 = MlpConv(pretrained_out, filter_maps=16, kernel_size=(5, 5), activation=self._mid_layer_activation_type, kernel_initializer=self._weight_init, bias_initializer=self._bias_init)
         nin_2 = MlpConv(nin_1.output, filter_maps=16, kernel_size=(5, 5), activation=self._mid_layer_activation_type, kernel_initializer=self._weight_init, bias_initializer=self._bias_init)
+        
         return nin_2.output
 
     def _pretrained_block(self, rgb_input):
         rgb_mobile = self._load_mobilenet(rgb_input)
         rgb_mobile_out = rgb_mobile.output
+        
         return rgb_mobile_out
 
     def _load_mobilenet(self, input_tensor):
         mobilenet_model = mobilenet.MobileNet(input_tensor=input_tensor, weights='imagenet')#, alpha=0.75)
         cropped_model = Model(inputs=mobilenet_model.input, outputs=mobilenet_model.get_layer(index=20).output)
-        #mobilenet_model.layers = mobilenet_model.layers[0:22] # Crop model.
-        #mobilenet_model.outputs = [mobilenet_model.layers[-1].output]
-        # mobilenet_model.outputs = [mobilenet_model.layers[21].output]
-        # mobilenet_model.layers[0].inbound_nodes = [] # Cut inbound node connections.
-        # mobilenet_model.layers[21].outbound_nodes = [] # Cut outbound node connections.
-        # #mobilenet_model.layers[-1].outbound_nodes = [] # Cut outbound node connections.
         cropped_model.layers[0].inbound_nodes = []
         cropped_model.layers[-1].outbound_nodes = []
+        
         return cropped_model
 
     def _calibration_block(self, input_rgb, input_radar):
@@ -104,6 +101,7 @@ class RadNet:
             fc_2 = Dense(256, activation=self._get_activation_instance(), kernel_initializer=self._weight_init, bias_initializer=self._bias_init, kernel_regularizer=self._l2_reg, bias_regularizer=self._ls_bias_reg)(drop_1)
             #gaussian_noise_1 = keras.layers.GaussianNoise(1e-05)(fc_2)
             predicted_decalib_quat = Dense(4, activation='linear', kernel_initializer=self._weight_init, bias_initializer=self._bias_init)(fc_2)
+        
         return predicted_decalib_quat
 
     def _spatial_transformer_layers(self, input_list):
@@ -117,7 +115,6 @@ class RadNet:
         :return: List with [predicted_depth_map, cloud_pred, radar_input]
 
         """
-        # TODO: Modify the following operations from CalibNet
         predicted_decalib_quat = input_list[0]
         radar_input = input_list[1]
         k_mat = input_list[2]
@@ -131,21 +128,8 @@ class RadNet:
         batch_size = tf.shape(radar_input)[0]
         #print(batch_size)
         depth_maps_predicted, cloud_pred = tf.map_fn(lambda x:at3._simple_transformer(radar_input[x,:,:,0], predicted_transform_augm[x], k_mat[x]), elems = tf.range(0, batch_size, 1), dtype = (tf.float32, tf.float32))
-        #depth_maps_pred, cloud_pred = Lambda(at3._simple_transformer(radar_input, predicted_transform_augm, k_mat))
-
-        # transforms depth maps by the expected transformation
-        # depth_maps_expected, cloud_exp = tf.map_fn(lambda x:at3._simple_transformer(X2_pooled[x,:,:,0]*40.0 + 40.0, expected_transforms[x], K_
-
-        #Return radar input to use it in loss function
-
-        #return [predicted_decalib_quat, depth_maps_predicted, cloud_pred, radar_input, k_mat]
 
         return [predicted_decalib_quat, depth_maps_predicted, cloud_pred, radar_input, k_mat]
-
-
-    # TODO: Because using multiple outputs on a single loss function is a hurdle/impossible in keras, try the following:
-    # create the loss here and get the result in a Tensor. Then, add the loss in the model
-    # before returning via model.add_loss()
 
     def _photometric_and_3d_pointcloud_loss(self, y_true, y_pred, alpha, beta):
         """
@@ -180,8 +164,6 @@ class RadNet:
             elems=tf.range(0, batch_size, 1), dtype=(tf.float32, tf.float32))
 
         # photometric loss between predicted and expected transformation
-        # Note that here they have to re-normalize the depth maps since they de-normalized them before the ST layers!!!
-        # plus, they measure the photometric loss only in a 10x10 area in the center of the image!!!
         photometric_loss = tf.nn.l2_loss(
             tf.subtract(depth_maps_expected[:, 10:-10, 10:-10], depth_maps_predicted[:, 10:-10, 10:-10]))
 
@@ -195,15 +177,6 @@ class RadNet:
 
 
     def _se3_block(self, predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans):
-        # TODO: Check if I should create a new custom Layer instead of using Lambda
-        # The below has 0 trainable parameters - is this correct?
-        # From gvnn paper pg10 (where CalibNet took 3D ST layers from) :
-        """
-        In this work, we bridge the gap between learning and geometry
-        based methods with our 3D Spatial Transformer module which explicitly defines
-        these operations as layers that act as computational blocks with no learning
-        parameters but allow backpropagation from the cost function to the input layers
-        """
         # https://github.com/keras-team/keras/issues/7078
         output = Lambda(self._spatial_transformer_layers)([predicted_decalib_quat, radar_input, k_mat, decalib_gt_trans])
 
